@@ -349,7 +349,97 @@ void Pipeline< p, P, flags >::clip_triangle(
  *
  * If you wish to work in fixed point, check framebuffer.h for useful information about the framebuffer's dimensions.
  *
+ * 	//TODO: Check out the block comment above this function for more information on how to fill in this function!
+	// 		The OpenGL specification section 3.5 may also come in handy.
+
  */
+
+/*
+	When on-boundary, only accepts left and bottom
+*/
+
+/* doesn't count boundary */
+
+float cross2D(Vec3 a, Vec3 b){
+	return a.x * b.y - a.y * b.x;
+}
+
+bool segmentCross(Vec3 a1, Vec3 a2, Vec3 b1, Vec3 b2){
+	Vec3 a(a2.x - a1.x, a2.y - a1.y, 0.f);  // direction vector of segment a
+	Vec3 b(b2.x - b1.x, b2.y - b1.y, 0.f);  // direction vector of segment b
+	float cross_ab = cross2D(a, b);
+	if(cross_ab == 0.f){ // parallel
+		return false;
+	}
+	Vec3 c(b1.x - a1.x, b1.y - a1.y, 0.f);  // vector from a1 to b1
+	float t = cross2D(c, b) / cross_ab;
+	float u = cross2D(c, a) / cross_ab;
+	
+	return t >= 0.f && t <= 1.f && u >= 0.f && u <= 1.f ;
+
+}
+
+bool inDiamond(Vec3 test, int x, int y){
+	// Assume no over the camera bound situation
+	if(test.x + 0.5f >= x && test.x + 0.5f < x + 1 && test.y + 0.5f >= y && test.y + 0.5f < y + 1){
+		return true;
+	}
+	return false;
+}
+
+bool exitDiamond_vertical( int x, int y, Vec3 lower, Vec3 upper){
+	if(lower.x + 0.5f >= x && lower.x + 0.5f < x + 1){ // x in dimamond range
+		bool lowerIn = inDiamond(lower, x, y);
+		bool upperIn = inDiamond(upper, x, y);
+		if(lowerIn && upperIn){
+			return false;
+		}
+		if(!lowerIn && !upperIn){
+			if(lower.y <= y && upper.y >= y){
+				return true;
+			}
+			return false; // Both above the diamond
+		}
+		return true; // One in one out
+	}
+	return false;
+}
+
+bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb){
+	float slope = (vb.y - va.y) / (vb.x - va.x);
+	bool aIn = inDiamond(va, x, y);
+	bool bIn = inDiamond(vb, x, y);
+	if(aIn && bIn){
+		return false;
+	}
+	else if(!aIn && !bIn){ // at least cross twice
+		// construct 4 outline segments from the diamond
+		Vec3 top = Vec3(x*1.0f, y + 0.5f, 0.f);
+		Vec3 bottom = Vec3(x*1.0f, y - 0.5f, 0.f);
+		Vec3 left = Vec3(x - 0.5f, y*1.0f, 0.f);
+		Vec3 right = Vec3(x + 0.5f, y*1.0f, 0.f);
+		
+		int count = 0;
+		if(segmentCross(va, vb, left, top )){
+			count++;	
+		}
+		if(segmentCross(va, vb, right, top )){
+			count++;	
+		}
+		if(segmentCross(va, vb, left, bottom )){
+			count++;	
+		}
+		if(segmentCross(va, vb, right, bottom )){
+			count++;	
+		}
+
+		return count == 2;
+
+	}else{ // one in one out
+		return true;
+	}
+}
+
 
 template< PrimitiveType p, class P, uint32_t flags >
 void Pipeline< p, P, flags >::rasterize_line(
@@ -361,8 +451,31 @@ void Pipeline< p, P, flags >::rasterize_line(
 	}
 	//A1T2: rasterize_line
 
-	//TODO: Check out the block comment above this function for more information on how to fill in this function!
-	// 		The OpenGL specification section 3.5 may also come in handy.
+	/*
+		determining the epsilon value (if the staring point in on the edge of the pixel, we need to move it a bit)
+		spilt into vertical lines, slope in [-1,1], and slope in [-inf, -1) or (1, inf]
+	*/
+
+	
+
+	// vertical line
+	if(va.fb_position.x == vb.fb_position.y){
+		Vec3 lower;
+		Vec3 upper;
+		if(va.fb_position.y < vb.fb_position.y){
+			lower = va.fb_position;
+			upper = vb.fb_position;
+		}else{
+			lower = vb.fb_position;
+			upper = va.fb_position;
+		}
+	}
+
+	// slope in [-1,1]
+	
+
+
+
 
 	{ //As a placeholder, draw a point in the middle of the line:
 		//(remove this code once you have a real implementation)
