@@ -124,6 +124,7 @@ const util_objects = [
 	maek.CPP("src/util/rand.cpp"),
 	maek.CPP("src/util/timer.cpp"),
 	maek.CPP("src/util/to_json.cpp"),
+	maek.CPP("src/util/helper.cpp"),
 ];
 const platform_objects = [
 	maek.CPP("src/platform/gl.cpp"),
