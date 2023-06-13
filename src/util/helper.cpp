@@ -1,4 +1,6 @@
 # include "helper.h"
+#include <iostream>
+
 
 
 float cross2D(Vec3 a, Vec3 b){
@@ -56,6 +58,7 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 	// float slope = (vb.y - va.y) / (vb.x - va.x);
 	bool aIn = inDiamond(va, x, y);
 	bool bIn = inDiamond(vb, x, y);
+	std::cout << "aIn: " << aIn << " bIn: " << bIn << std::endl;
 	if(aIn && bIn){
 		return false;
 	}
@@ -79,7 +82,7 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 		if(segmentCross(va, vb, right, bottom )){
 			count++;	
 		}
-
+		std::cout << "count: " << count << std::endl;
 		return count == 2;
 
 	}else{
@@ -148,6 +151,8 @@ Vec2 StartingDiamondPos_NoVertical_No45Deg(Vec3 start, Vec3 end){
             return Vec2(x2*1.0f, y2*1.0f);
         }
         else{
+			// this shouldn't happen
+			std::cout << "error in StartingDiamondPos_NoVertical_No45Deg" << std::endl;
             return Vec2(-1.f, -1.f);
         }
 
