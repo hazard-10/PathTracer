@@ -392,11 +392,13 @@ void Pipeline< p, P, flags >::rasterize_line(
 		}
 	}else{
 		float slope = (vb.fb_position.y - va.fb_position.y) / (vb.fb_position.x - va.fb_position.x);
-		if (slope == 1 || slope == -1){ // slope in {-1,1}	
+		if (slope == 1 || slope == -1){ // slope equals {-1,1} / 45, need to pivot by eps
 
 		}else if (slope > -1 && slope <1) { // slope in [-1,1] 
 			// starting from va, either va in 4 of the ajacent diamond, or (va,vb) cross the diamond
-
+			Vec2 startPixel = StartingDiamondPos_NoVertical_No45Deg(va.fb_position, vb.fb_position);
+			// while next pixel crossed by line and not containing b
+		
 		}else{ // slope in (-inf, -1) or (1, inf)
 
 		}
