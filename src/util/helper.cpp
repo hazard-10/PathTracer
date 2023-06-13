@@ -58,7 +58,6 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 	// float slope = (vb.y - va.y) / (vb.x - va.x);
 	bool aIn = inDiamond(va, x, y);
 	bool bIn = inDiamond(vb, x, y);
-	std::cout << "aIn: " << aIn << " bIn: " << bIn << std::endl;
 	if(aIn && bIn){
 		return false;
 	}
@@ -82,7 +81,6 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 		if(segmentCross(va, vb, right, bottom )){
 			count++;	
 		}
-		std::cout << "count: " << count << std::endl;
 		return count == 2;
 
 	}else{
@@ -91,6 +89,8 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 		else return !bIn;
 	}
 }
+
+
 
 Vec2 StartingDiamondPos_NoVertical_No45Deg(Vec3 start, Vec3 end){
 	// if start is precisely on the center of a pixel
@@ -152,10 +152,76 @@ Vec2 StartingDiamondPos_NoVertical_No45Deg(Vec3 start, Vec3 end){
         }
         else{
 			// this shouldn't happen
-			std::cout << "error in StartingDiamondPos_NoVertical_No45Deg" << std::endl;
             return Vec2(-1.f, -1.f);
         }
 
         
+    }
+}
+
+
+Vec2 StartingDiamondPos_Vertical(Vec3 start, Vec3 end){ // start is lower
+	// if start is precisely on the center of a pixel
+	if(start.x == floor(start.x) && start.y == floor(start.y)){
+		return Vec2(start.x, start.y);
+	}
+	// if start x or y is on the line of center
+	else if(start.x == floor(start.x)){
+		int x_int = int(floor(start.x));
+		int y1 = int(floor(start.y));
+		int y2 = int(ceil(start.y));
+		if(inDiamond(start, x_int, y1)){
+			return Vec2(start.x, y1*1.0f);
+		}
+		else{
+			return Vec2(start.x, y2*1.0f);
+		}
+	}
+	else if(start.y == floor(start.y)){
+		int x1 = int(floor(start.x));
+		int x2 = int(ceil(start.x));
+		if(inDiamond(start, x1, int(start.y))){
+			return Vec2(x1*1.0f, start.y);
+		}
+		else{
+			return Vec2(x2*1.0f, start.y);
+		}
+	}
+	// next check if it is in either four of the adjacent diamonds.
+    else{
+        int x1 = int(floor(start.x));
+        int x2 = int(ceil(start.x));
+        int y1 = int(floor(start.y));
+        int y2 = int(ceil(start.y));
+        if(inDiamond(start, x1, y1)){
+            return Vec2(x1*1.0f, y1*1.0f);
+        }
+        else if(inDiamond(start, x1, y2)){
+            return Vec2(x1*1.0f, y2*1.0f);
+        }
+        else if(inDiamond(start, x2, y1)){
+            return Vec2(x2*1.0f, y1*1.0f);
+        }
+        else if(inDiamond(start, x2, y2)){
+            return Vec2(x2*1.0f, y2*1.0f);
+        }
+        // if not in either diamonds, return the one it crosses
+        else if (exitDiamond_vertical(x1, y1, start, end)){
+            return Vec2(x1*1.0f, y1*1.0f);
+        }
+        else if (exitDiamond_vertical(x1, y2, start, end)){
+            return Vec2(x1*1.0f, y2*1.0f);
+        }
+        else if (exitDiamond_vertical(x2, y1, start, end)){
+            return Vec2(x2*1.0f, y1*1.0f);
+        }
+        else if (exitDiamond_vertical(x2, y2, start, end)){
+            return Vec2(x2*1.0f, y2*1.0f);
+        }
+        else{
+			// this shouldn't happen
+            return Vec2(-1.f, -1.f);
+        }
+
     }
 }

@@ -390,38 +390,47 @@ void Pipeline< p, P, flags >::rasterize_line(
 			lower = vb.fb_position;
 			upper = va.fb_position;
 		}
+		Vec2 startPixel = StartingDiamondPos_Vertical(lower, upper);
+		for (int y = int(startPixel.y); y < int(upper.y); y++){
+			Fragment frag;
+			frag.fb_position.x = lower.x;
+			frag.fb_position.y = float(y);
+			frag.fb_position.z = va.fb_position.z;
+			frag.attributes = va.attributes;
+			frag.derivatives.fill(Vec2(0.0f, 0.0f));
+			emit_fragment(frag);
+		}
 	}else{
 		float slope = (vb.fb_position.y - va.fb_position.y) / (vb.fb_position.x - va.fb_position.x);
+		Vec3 va_pos = va.fb_position;
+		Vec3 vb_pos = vb.fb_position;
 		if (slope == 1 || slope == -1){ // slope equals {-1,1} / 45, need to pivot by eps
-
-		}else if (slope > -1 && slope <1) { // slope in [-1,1] 
-			// starting from va, either va in 4 of the ajacent diamond, or (va,vb) cross the diamond
-			Vec2 startPixel = StartingDiamondPos_NoVertical_No45Deg(va.fb_position, vb.fb_position);
-			std::cout << "point A at " << va.fb_position << std::endl;
-			std::cout << "point  B at " << vb.fb_position << std::endl;
-			std::cout << "Starting pixel: " << startPixel << std::endl;
-			// while next pixel crossed by line and not containing b
-			int x_dir = vb.fb_position.x - va.fb_position.x > 0 ? 1 : -1;
-			int y_dir = vb.fb_position.y - va.fb_position.y > 0 ? 1 : -1;
-			float threshold = 0.5;
+			if (vb.fb_position.x == floor(vb.fb_position.x)){ // precisely on diamond edge
+				float epsilon = 0.001f;
+				vb_pos.x += epsilon;
+				vb_pos.y += epsilon;
+				va_pos.x -= epsilon;
+				va_pos.y -= epsilon;
+			}
+		}
+		// starting from va, either va in 4 of the ajacent diamond, or (va,vb) cross the diamond
+		Vec2 startPixel = StartingDiamondPos_NoVertical_No45Deg(va_pos, vb_pos);
+		int x_dir = vb_pos.x - va_pos.x > 0 ? 1 : -1;
+		int y_dir = vb_pos.y - va_pos.y > 0 ? 1 : -1;
+		float threshold = 0.5;
+		if (slope > -1 && slope <1) { // slope in [-1,1] 
 			int current_y = int(startPixel.y);
-			// int current_x = int(startPixel.x);
 			float cumulated_y = 0; // absolute value of the cumulated y
-			// while (exitDimaond_nonVertical(current_x, current_y, va.fb_position, vb.fb_position, 'b')){
-			for (int current_x = int(startPixel.x); current_x != int(vb.fb_position.x); current_x += x_dir){
+			
+			for (int current_x = int(startPixel.x); current_x != int(vb_pos.x); current_x += x_dir){
 				// emit fragment
 				Fragment frag;
-				Vec3 fragPos = Vec3(float(current_x), float(current_y) , float(va.fb_position.z));
+				Vec3 fragPos = Vec3(float(current_x), float(current_y) , float(va.fb_position.z)); // TODO: fix lerp z
 				frag.fb_position = fragPos;
-				// frag.fb_position.z = lerp(va.fb_position.z, 
-				// 						  vb.fb_position.z, 
-				// 						  (frag.fb_position.x - va.fb_position.x) / 
-				// 						   (vb.fb_position.x - va.fb_position.x));
 				frag.attributes = va.attributes;
 				frag.derivatives.fill(Vec2(0.0f, 0.0f));
 				emit_fragment(frag);
 				// move to next pixel
-				// current_x += x_dir; // have direction
 				cumulated_y += abs(slope);
 				if (cumulated_y > threshold){
 					current_y += y_dir;
@@ -429,7 +438,26 @@ void Pipeline< p, P, flags >::rasterize_line(
 				}
 			}
 		
-		}else{ // slope in (-inf, -1) or (1, inf)
+		}else{ // slope in (-inf, -1) or (1, inf), swap x and y 
+			// starting from va, either va in 4 of the ajacent diamond, or (va,vb) cross the diamond
+			int current_x = int(startPixel.x);
+			float cumulated_x = 0; // absolute value of the cumulated y
+			
+			for (int current_y = int(startPixel.y); current_y != int(floor(vb_pos.y)); current_y += y_dir){
+				// emit fragment
+				Fragment frag;
+				Vec3 fragPos = Vec3(float(current_x), float(current_y) , float(va.fb_position.z));
+				frag.fb_position = fragPos;
+				frag.attributes = va.attributes;
+				frag.derivatives.fill(Vec2(0.0f, 0.0f));
+				emit_fragment(frag);
+				// move to next pixel
+				cumulated_x += abs(1/slope);
+				if (cumulated_x > threshold){
+					current_x += x_dir;
+					threshold += 1.0f;
+				}
+			}
 
 		}
 	}
