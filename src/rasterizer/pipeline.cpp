@@ -143,7 +143,11 @@ void Pipeline< primitive_type, Program, flags >::run(
 		} else if constexpr ((flags & PipelineMask_Depth) == Pipeline_Depth_Less) {
 			//"Less" means the depth test passes when the new fragment has depth less than the stored depth.
 			//A1T4: Depth_Less
-			//TODO: implement depth test! We want to only emit fragments that have a depth less than the stored depth, hence "Depth_Less"
+			//TODO: implement depth test! We want to only emit fragments that have a depth 
+			// less than the stored depth, hence "Depth_Less"
+			if (f.fb_position.z >= fb_depth) {
+				continue;
+			}
 		} else {
 			static_assert((flags & PipelineMask_Depth) <= Pipeline_Depth_Always, "Unknown depth test flag.");
 		}
@@ -166,13 +170,17 @@ void Pipeline< primitive_type, Program, flags >::run(
 				fb_color = sf.color;
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Add) {
 				//A1T4: Blend_Add
-				//TODO: framebuffer color should have fragment color multiplied by fragment opacity added to it.
-				fb_color = sf.color; //<-- replace this line
+				//TODO: framebuffer color should have fragment color multiplied 
+				// by fragment opacity added to it.
+				fb_color = sf.color * sf.opacity + fb_color; //<-- replace this line
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Over) {
 				//A1T4: Blend_Over
-				//TODO: set framebuffer color to the result of "over" blending (also called "alpha blending") the fragment color over the framebuffer color, using the fragment's opacity
-				// 		You may assume that the framebuffer color has its alpha premultiplied already, and you just want to compute the resulting composite color
-				fb_color = sf.color; //<-- replace this line
+				//TODO: set framebuffer color to the result of "over" blending (also called "alpha blending") 
+				   //the fragment color over the framebuffer color, using the fragment's opacity
+				// 		You may assume that the framebuffer color has its alpha premultiplied already, 
+				// and you just want to compute the resulting composite color
+				fb_color = sf.color * sf.opacity; //<-- replace this line
+
 			} else {
 				static_assert((flags & PipelineMask_Blend) <= Pipeline_Blend_Over, "Unknown blending flag.");
 			}
@@ -491,7 +499,7 @@ void Pipeline< p, P, flags >::rasterize_line(
  *
  * Notes on derivatives:
  *  The derivatives are partial derivatives w.r.t. screen locations. That is:
- *    derivatives[i].x = d/d(fb_position.x) attributes[i]
+ *    derivatives[i].x = d/d(fb_position.x) attributes[ie]
  *    derivatives[i].y = d/d(fb_position.y) attributes[i]
  *  You may compute these derivatives analytically or numerically.
  *
@@ -529,9 +537,9 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 
 		//As a placeholder, here's code that draws some lines:
 		//(remove this and replace it with a real solution)
-		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(va, vb, emit_fragment);
-		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vb, vc, emit_fragment);
-		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vc, va, emit_fragment);
+		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(va, vb, emit_fragment);
+		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vb, vc, emit_fragment);
+		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vc, va, emit_fragment);
 
 		// Get the bounding box of the triangle
 		float min_x = std::min(va.fb_position.x, std::min(vb.fb_position.x, vc.fb_position.x));
@@ -540,16 +548,16 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
 
 
-		float tri_surface = triangleArea(va.fb_position, vb.fb_position, vc.fb_position);
-		std::cout << "Triangle area: " << tri_surface << std::endl;
-		std::cout << "boundbox area: " << (max_x - min_x) * (max_y - min_y) << std::endl;
+		// float tri_surface = triangleArea(va.fb_position, vb.fb_position, vc.fb_position);
+		// std::cout << "Triangle area: " << tri_surface << std::endl;
+		// std::cout << "boundbox area: " << (max_x - min_x) * (max_y - min_y) << std::endl;
 
-		int count_tri = 0;
-		int count_box = 0;
-		
-		for (int row = int(min_x); row <= int(max_x); row++){
-			for (int col = int(min_y); col <= int(max_y); col++){
-				Vec3 pixelPos = Vec3(row + 0.f, col + 0.f, 0.0f);
+		// int count_tri = 0;
+		// int count_box = 0;
+		for (int row = int(floor(min_x)); row < int(ceil(max_x)); row++){
+			for (int col = int(floor(min_y)); col < int(ceil(max_y)); col++){
+				Vec3 pixelPos = Vec3(row + 0.5f, col + 0.5f, 0.f);
+				pixelPos.z = float(interpolateZ(pixelPos, va.fb_position, vb.fb_position, vc.fb_position));
 				if( inTriangle(pixelPos, va.fb_position, vb.fb_position, vc.fb_position))
 				{
 					Fragment frag;
@@ -557,13 +565,13 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 					frag.attributes = va.attributes;
 					frag.derivatives.fill(Vec2(0.0f, 0.0f));
 					emit_fragment(frag);
-					count_tri++;
+					// count_tri++;
 				}
-				count_box++;
+				// count_box++;
 			}
 		}
-		std::cout << "count_tri: " << count_tri << std::endl;
-		std::cout << "count_box: " << count_box << std::endl;
+		// std::cout << "count_tri: " << count_tri << std::endl;
+		// std::cout << "count_box: " << count_box << std::endl;
 
 	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Screen) {
 		//A1T5: screen-space smooth triangles

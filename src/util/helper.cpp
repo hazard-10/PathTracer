@@ -226,16 +226,24 @@ Vec2 StartingDiamondPos_Vertical(Vec3 start, Vec3 end){ // start is lower
     }
 }
 
-float triangleArea(Vec3 A, Vec3 B, Vec3 C) {
-    return abs((A.x*(B.y - C.y) + B.x*(C.y - A.y) + C.x*(A.y - B.y)) / 2.0f);
+double triangleArea(Vec3 A, Vec3 B, Vec3 C) {
+    return abs((A.x*(B.y - C.y) + B.x*(C.y - A.y) + C.x*(A.y - B.y)) / 2.0);
 }
 
 
 bool inTriangle(Vec3 test, Vec3 A, Vec3 B, Vec3 C){
-	float error = 2.f;
-	float totalArea = triangleArea(A, B, C);
-	float area1 = triangleArea(test, B, C);
-	float area2 = triangleArea(A, test, C);
-	float area3 = triangleArea(A, B, test);
+	double error = .05;
+	double totalArea = triangleArea(A, B, C);
+	double area1 = triangleArea(test, B, C);
+	double area2 = triangleArea(A, test, C);
+	double area3 = triangleArea(A, B, test);
 	return abs(totalArea -( area1 + area2 + area3)) <= error;
+}
+
+double interpolateZ(Vec3 test, Vec3 A, Vec3 B, Vec3 C){
+	double totalArea = triangleArea(A, B, C);
+	double area1 = triangleArea(test, B, C);
+	double area2 = triangleArea(A, test, C);
+	double area3 = triangleArea(A, B, test);
+	return (area1 * A.z + area2 * B.z + area3 * C.z) / totalArea;
 }
