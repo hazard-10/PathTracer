@@ -463,8 +463,6 @@ void Pipeline< p, P, flags >::rasterize_line(
 		}
 	}
 
-
-
 	// { //As a placeholder, draw a point in the middle of the line:
 	// 	//(remove this code once you have a real implementation)
 	// 	Fragment mid;
@@ -497,7 +495,8 @@ void Pipeline< p, P, flags >::rasterize_line(
  *    derivatives[i].y = d/d(fb_position.y) attributes[i]
  *  You may compute these derivatives analytically or numerically.
  *
- *  See section 8.12.1 "Derivative Functions" of the GLSL 4.20 specification for some inspiration. (*HOWEVER*, the spec is solving a harder problem, and also nothing in the spec is binding on your implementation)
+ *  See section 8.12.1 "Derivative Functions" of the GLSL 4.20 specification for some inspiration. 
+ *  (*HOWEVER*, the spec is solving a harder problem, and also nothing in the spec is binding on your implementation)
  *
  *  One approach is to rasterize blocks of four fragments and use forward and backward differences to compute derivatives.
  *  To assist you in this approach, keep in mind that the framebuffer size is *guaranteed* to be even. (see framebuffer.h)
@@ -533,6 +532,39 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(va, vb, emit_fragment);
 		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vb, vc, emit_fragment);
 		Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vc, va, emit_fragment);
+
+		// Get the bounding box of the triangle
+		float min_x = std::min(va.fb_position.x, std::min(vb.fb_position.x, vc.fb_position.x));
+		float max_x = std::max(va.fb_position.x, std::max(vb.fb_position.x, vc.fb_position.x));
+		float min_y = std::min(va.fb_position.y, std::min(vb.fb_position.y, vc.fb_position.y));
+		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
+
+
+		float tri_surface = triangleArea(va.fb_position, vb.fb_position, vc.fb_position);
+		std::cout << "Triangle area: " << tri_surface << std::endl;
+		std::cout << "boundbox area: " << (max_x - min_x) * (max_y - min_y) << std::endl;
+
+		int count_tri = 0;
+		int count_box = 0;
+		
+		for (int row = int(min_x); row <= int(max_x); row++){
+			for (int col = int(min_y); col <= int(max_y); col++){
+				Vec3 pixelPos = Vec3(row + 0.f, col + 0.f, 0.0f);
+				if( inTriangle(pixelPos, va.fb_position, vb.fb_position, vc.fb_position))
+				{
+					Fragment frag;
+					frag.fb_position = pixelPos;
+					frag.attributes = va.attributes;
+					frag.derivatives.fill(Vec2(0.0f, 0.0f));
+					emit_fragment(frag);
+					count_tri++;
+				}
+				count_box++;
+			}
+		}
+		std::cout << "count_tri: " << count_tri << std::endl;
+		std::cout << "count_box: " << count_box << std::endl;
+
 	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Screen) {
 		//A1T5: screen-space smooth triangles
 		//TODO: rasterize triangle (see block comment above this function).

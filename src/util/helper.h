@@ -18,3 +18,6 @@ bool exitDiamond_vertical( int x, int y, Vec3 lower, Vec3 upper);
 bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag);
 Vec2 StartingDiamondPos_NoVertical_No45Deg(Vec3 start, Vec3 end);
 Vec2 StartingDiamondPos_Vertical(Vec3 start, Vec3 end);
+
+float triangleArea(Vec3 A, Vec3 B, Vec3 C);
+bool inTriangle(Vec3 test, Vec3 A, Vec3 B, Vec3 C);
