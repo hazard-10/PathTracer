@@ -508,7 +508,7 @@ void Pipeline< p, P, flags >::rasterize_line(
  *
  *  One approach is to rasterize blocks of four fragments and use forward and backward differences to compute derivatives.
  *  To assist you in this approach, keep in mind that the framebuffer size is *guaranteed* to be even. (see framebuffer.h)
- *
+ *  
  * Notes on coverage:
  *  If two triangles are on opposite sides of the same edge, and a
  *  fragment center lies on that edge, rasterize_triangle should
@@ -522,7 +522,7 @@ void Pipeline< p, P, flags >::rasterize_line(
  *  This is pretty tricky to get exactly right!
  *
  */
-template< PrimitiveType p, class P, uint32_t flags >
+template< PrimitiveType p, class P, uint32_t flags>
 void Pipeline< p, P, flags >::rasterize_triangle(
 		ClippedVertex const &va, ClippedVertex const &vb, ClippedVertex const &vc,
 		std::function< void(Fragment const &) > const &emit_fragment
@@ -536,7 +536,7 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 		//TODO: rasterize triangle (see block comment above this function).
 
 		//As a placeholder, here's code that draws some lines:
-		//(remove this and replace it with a real solution)
+		// Wireframe implementation
 		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(va, vb, emit_fragment);
 		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vb, vc, emit_fragment);
 		// Pipeline< PrimitiveType::Lines, P, flags >::rasterize_line(vc, va, emit_fragment);
@@ -547,13 +547,6 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 		float min_y = std::min(va.fb_position.y, std::min(vb.fb_position.y, vc.fb_position.y));
 		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
 
-
-		// float tri_surface = triangleArea(va.fb_position, vb.fb_position, vc.fb_position);
-		// std::cout << "Triangle area: " << tri_surface << std::endl;
-		// std::cout << "boundbox area: " << (max_x - min_x) * (max_y - min_y) << std::endl;
-
-		// int count_tri = 0;
-		// int count_box = 0;
 		for (int row = int(floor(min_x)); row < int(ceil(max_x)); row++){
 			for (int col = int(floor(min_y)); col < int(ceil(max_y)); col++){
 				Vec3 pixelPos = Vec3(row + 0.5f, col + 0.5f, 0.f);
@@ -565,13 +558,9 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 					frag.attributes = va.attributes;
 					frag.derivatives.fill(Vec2(0.0f, 0.0f));
 					emit_fragment(frag);
-					// count_tri++;
 				}
-				// count_box++;
 			}
 		}
-		// std::cout << "count_tri: " << count_tri << std::endl;
-		// std::cout << "count_box: " << count_box << std::endl;
 
 	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Screen) {
 		//A1T5: screen-space smooth triangles
@@ -579,7 +568,33 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 
 		//As a placeholder, here's code that calls the Flat interpolation version of the function:
 		//(remove this and replace it with a real solution)
-		Pipeline< PrimitiveType::Lines, P, (flags  & ~PipelineMask_Interp) | Pipeline_Interp_Flat >::rasterize_triangle(va, vb, vc, emit_fragment);
+		// Pipeline< PrimitiveType::Lines, P, (flags  & ~PipelineMask_Interp) | Pipeline_Interp_Flat >::rasterize_triangle(va, vb, vc, emit_fragment);
+	
+		float min_x = std::min(va.fb_position.x, std::min(vb.fb_position.x, vc.fb_position.x));
+		float max_x = std::max(va.fb_position.x, std::max(vb.fb_position.x, vc.fb_position.x));
+		float min_y = std::min(va.fb_position.y, std::min(vb.fb_position.y, vc.fb_position.y));
+		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
+
+		// std::array< float, FA> attributesTmp = va.attributes;
+
+		for (int row = int(floor(min_x)); row < int(ceil(max_x)); row++){
+			for (int col = int(floor(min_y)); col < int(ceil(max_y)); col++){
+				Vec3 pixelPos = Vec3(row + 0.5f, col + 0.5f, 0.f);
+				pixelPos.z = float(interpolateZ(pixelPos, va.fb_position, vb.fb_position, vc.fb_position));
+				if( inTriangle(pixelPos, va.fb_position, vb.fb_position, vc.fb_position))
+				{
+					Fragment frag;
+					// frag.attributes = interpolateAttr(pixelPos, va.fb_position, vb.fb_position, vc.fb_position, 
+					// 								  va.attributes, vb.attributes, vc.attributes);
+					
+					frag.attributes = interpolateAttr(pixelPos, va.fb_position, vb.fb_position, vc.fb_position, 
+																		  va.attributes, vb.attributes, vc.attributes);
+					frag.fb_position = pixelPos;
+					emit_fragment(frag);
+				}
+			}
+		}
+
 	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Correct) {
 		//A1T5: perspective correct triangles
 		//TODO: rasterize triangle (block comment above this function).

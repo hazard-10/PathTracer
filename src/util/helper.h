@@ -22,3 +22,8 @@ Vec2 StartingDiamondPos_Vertical(Vec3 start, Vec3 end);
 double triangleArea(Vec3 A, Vec3 B, Vec3 C);
 bool inTriangle(Vec3 test, Vec3 A, Vec3 B, Vec3 C);
 double interpolateZ(Vec3 test, Vec3 A, Vec3 B, Vec3 C);
+
+std::array< float, 5> interpolateAttr(Vec3 test, Vec3 A, Vec3 B, Vec3 C, 
+										std::array< float, 5> attrA, 
+										std::array< float, 5> attrB, 
+										std::array< float, 5> attrC);
