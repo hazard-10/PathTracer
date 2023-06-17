@@ -576,6 +576,8 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
 
 		// std::array< float, FA> attributesTmp = va.attributes;
+		bool derivativesComputed = false;
+		Vec2 der;
 
 		for (int row = int(floor(min_x)); row < int(ceil(max_x)); row++){
 			for (int col = int(floor(min_y)); col < int(ceil(max_y)); col++){
@@ -584,12 +586,42 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 				if( inTriangle(pixelPos, va.fb_position, vb.fb_position, vc.fb_position))
 				{
 					Fragment frag;
-					// frag.attributes = interpolateAttr(pixelPos, va.fb_position, vb.fb_position, vc.fb_position, 
-					// 								  va.attributes, vb.attributes, vc.attributes);
+					if (!derivativesComputed){
+						Vec3 derTest_x = pixelPos + Vec3(.01f, 0.0f, 0.0f);
+						Vec3 derTest_y = pixelPos + Vec3(0.0f, .01f, 0.0f);
+						Vec3 baryPixel = barycentricCoord(pixelPos, 
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);
+
+						Vec3 bary_x = barycentricCoord(derTest_x, 
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);
+						
+						Vec3 bary_y = barycentricCoord(derTest_y,
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);	
+						
+						Vec3 baryDeriveX = (bary_x - baryPixel) / .01f;
+						Vec3 baryDeriveY = (bary_y - baryPixel) / .01f;
+						der.x = baryDeriveX.x * va.attributes[0] + 
+								baryDeriveX.y * vb.attributes[0] + 
+								baryDeriveX.z * vc.attributes[0];
+						der.y = baryDeriveY.x * va.attributes[0] +
+								baryDeriveY.y * vb.attributes[0] +
+								baryDeriveY.z * vc.attributes[0];
+
+						derivativesComputed = true;
+					}
 					
 					frag.attributes = interpolateAttr(pixelPos, va.fb_position, vb.fb_position, vc.fb_position, 
 																		  va.attributes, vb.attributes, vc.attributes);
 					frag.fb_position = pixelPos;
+					
+					frag.derivatives[0] = der;
+					
 					emit_fragment(frag);
 				}
 			}
@@ -601,7 +633,68 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 
 		//As a placeholder, here's code that calls the Screen-space interpolation function:
 		//(remove this and replace it with a real solution)
-		Pipeline< PrimitiveType::Lines, P, (flags  & ~PipelineMask_Interp) | Pipeline_Interp_Screen >::rasterize_triangle(va, vb, vc, emit_fragment);
+		// Pipeline< PrimitiveType::Lines, P, (flags  & ~PipelineMask_Interp) | Pipeline_Interp_Screen >::rasterize_triangle(va, vb, vc, emit_fragment);
+		float min_x = std::min(va.fb_position.x, std::min(vb.fb_position.x, vc.fb_position.x));
+		float max_x = std::max(va.fb_position.x, std::max(vb.fb_position.x, vc.fb_position.x));
+		float min_y = std::min(va.fb_position.y, std::min(vb.fb_position.y, vc.fb_position.y));
+		float max_y = std::max(va.fb_position.y, std::max(vb.fb_position.y, vc.fb_position.y));
+
+		
+		bool derivativesComputed = false;
+		Vec2 der;
+
+		for (int row = int(floor(min_x)); row < int(ceil(max_x)); row++){
+			for (int col = int(floor(min_y)); col < int(ceil(max_y)); col++){
+				Vec3 pixelPos = Vec3(row + 0.5f, col + 0.5f, 0.f);
+				if( inTriangle(pixelPos, va.fb_position, vb.fb_position, vc.fb_position))
+				{
+					pixelPos.z = float(interpolateZ(pixelPos, va.fb_position, vb.fb_position, vc.fb_position));
+					
+					Fragment frag;
+					if (!derivativesComputed){
+						Vec3 derTest_x = pixelPos + Vec3(.01f, 0.0f, 0.0f);
+						Vec3 derTest_y = pixelPos + Vec3(0.0f, .01f, 0.0f);
+						Vec3 baryPixel = barycentricCoord(pixelPos, 
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);
+
+						Vec3 bary_x = barycentricCoord(derTest_x, 
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);
+						
+						Vec3 bary_y = barycentricCoord(derTest_y,
+													 va.fb_position, 
+													 vb.fb_position, 
+													 vc.fb_position);	
+						
+						Vec3 baryDeriveX = (bary_x - baryPixel) / .01f;
+						Vec3 baryDeriveY = (bary_y - baryPixel) / .01f;
+						der.x = baryDeriveX.x * va.attributes[0] + 
+								baryDeriveX.y * vb.attributes[0] + 
+								baryDeriveX.z * vc.attributes[0];
+						der.y = baryDeriveY.x * va.attributes[0] +
+								baryDeriveY.y * vb.attributes[0] +
+								baryDeriveY.z * vc.attributes[0];
+
+						derivativesComputed = true;
+					}
+					
+		
+					
+					frag.attributes = interpolateAttrWInverse(pixelPos, va.fb_position, vb.fb_position, vc.fb_position, 
+															  va.attributes, vb.attributes, vc.attributes,
+															  va.inv_w, vb.inv_w, vc.inv_w);
+					// for (int i = 0; i < frag.attributes.size(); i++){
+					// 	frag.attributes[i] = frag.attributes[i] / interpolateInverse;
+					// }
+					frag.derivatives[0] = der;
+					frag.fb_position = pixelPos;
+					emit_fragment(frag);
+				}
+			}
+		}
 	}
 }
 

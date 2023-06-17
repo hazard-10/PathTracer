@@ -263,3 +263,43 @@ std::array< float, 5> interpolateAttr(Vec3 test, Vec3 A, Vec3 B, Vec3 C,
 	}
 	return result;
 }
+
+std::array< float, 5> interpolateAttrWInverse(Vec3 test, Vec3 A, Vec3 B, Vec3 C, 
+										std::array< float, 5> attrA, 
+										std::array< float, 5> attrB, 
+										std::array< float, 5> attrC,
+										float ivA, float ivB, float ivC){
+	double totalArea = triangleArea(A, B, C);
+	double area1 = triangleArea(test, B, C);
+	double area2 = triangleArea(A, test, C);
+	double area3 = triangleArea(A, B, test);
+
+	Vec3 baryPixel = Vec3(float(area1 / totalArea), 
+					float(area2 / totalArea), 
+					float(area3 / totalArea));
+									
+	float interpolateInverse = 	float(ivA * baryPixel.x) + 
+								float(ivB * baryPixel.y) +  
+								float(ivC * baryPixel.z);
+
+	std::array< float, 5> result;
+	for(int i = 0; i < 5; i++){
+		result[i] = float((area1 * attrA[i] * ivA + area2 * attrB[i] * ivB + area3 * attrC[i] * ivC) / totalArea);
+	
+		result[i] = result[i] / interpolateInverse;
+	}
+	return result;
+}
+
+Vec3 barycentricCoord(Vec3 test, Vec3 A, Vec3 B, Vec3 C){
+	double totalArea = triangleArea(A, B, C);
+	double area1 = triangleArea(test, B, C);
+	double area2 = triangleArea(A, test, C);
+	double area3 = triangleArea(A, B, test);
+	return Vec3(float(area1 / totalArea), 
+				float(area2 / totalArea), 
+				float(area3 / totalArea));
+}
+
+
+

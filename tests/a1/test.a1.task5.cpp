@@ -244,8 +244,10 @@ Test test_a1_task5_screen_simple_attribs("a1.task5.screen.simple.attribs", []() 
 	// with barycentric coordinates:
 	//  [0.75, 0.125, 0.125]  and [0.25, 0.375, 0.375], respectively
 
-	//changes in x change barycentric coords by [-0.5 * dx, 0.25 * dx, 0.25 * dx] (since must go from [1.0,0.0,0.0] to [0.0,0.5,0.5] over 2 units)
-	//changes in y change barycentric coords by [0.0, -dy, dy] (since must go from [0.0,1.0,0.0] to [0.0,0.0,1.0] over 1 unit)
+	//changes in x change barycentric coords by [-0.5 * dx, 0.25 * dx, 0.25 * dx] 
+	// (since must go from [1.0,0.0,0.0] to [0.0,0.5,0.5] over 2 units)
+	//changes in y change barycentric coords by [0.0, -dy, dy] 
+	// (since must go from [0.0,1.0,0.0] to [0.0,0.0,1.0] over 1 unit)
 
 	Vec2 attrib0_deriv = Vec2{
 		1.0f * -0.5f + 2.0f * 0.25f + 4.0f * 0.25f,

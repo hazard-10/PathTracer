@@ -27,3 +27,9 @@ std::array< float, 5> interpolateAttr(Vec3 test, Vec3 A, Vec3 B, Vec3 C,
 										std::array< float, 5> attrA, 
 										std::array< float, 5> attrB, 
 										std::array< float, 5> attrC);
+std::array< float, 5> interpolateAttrWInverse(Vec3 test, Vec3 A, Vec3 B, Vec3 C, 
+										std::array< float, 5> attrA, 
+										std::array< float, 5> attrB, 
+										std::array< float, 5> attrC,
+										float ivA, float ivB, float ivC);
+Vec3 barycentricCoord(Vec3 test, Vec3 A, Vec3 B, Vec3 C);
