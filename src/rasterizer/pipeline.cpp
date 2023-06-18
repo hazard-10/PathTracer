@@ -669,7 +669,7 @@ void Pipeline< p, P, flags >::rasterize_triangle(
 													 vb.fb_position, 
 													 vc.fb_position);	
 						
-						Vec3 baryDeriveX = (bary_x - baryPixel) / .01f;
+						Vec3 baryDeriveX = (bary_x - baryPixel) / .01f;    
 						Vec3 baryDeriveY = (bary_y - baryPixel) / .01f;
 						der.x = baryDeriveX.x * va.attributes[0] + 
 								baryDeriveX.y * vb.attributes[0] + 

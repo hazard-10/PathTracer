@@ -111,7 +111,9 @@ struct Lambertian {
 
 		float lod = 0.0f; //<-- replace this line
 		//-----
-
+		float distance1 = sqrt(pow(fdx_texcoord[0], 2.0f) + pow(fdx_texcoord[1], 2.0f));
+		float distance2 = sqrt(pow(fdy_texcoord[0], 2.0f) + pow(fdy_texcoord[1], 2.0f));
+        lod = std::max(distance1, distance2);
 
 		Vec3 normal = fa_normal.unit();
 
