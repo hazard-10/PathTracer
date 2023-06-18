@@ -24,14 +24,13 @@ Spectrum sample_nearest(HDR_Image const &image, Vec2 uv) {
 
 Spectrum sample_bilinear(HDR_Image const &image, Vec2 uv) {
 	//A1T6: sample_bilinear
-	//TODO: implement bilinear sampling strategy on texture 'image'
-	
+	//TODO: implement bilinear sampling strategy on texture 'image' 
 	//clamp texture coordinates, convert to [0,w]x[0,h] pixel space:
 	float x = image.w * std::clamp(uv.x, 0.0f, 1.0f);
-	float y = image.h * std::clamp(uv.y, 0.0f, 1.0f);
+	float y = image.h * std::clamp(uv.y, 0.0f, 1.0f); 
 
-	float i = std::floor(x -1/2); // bottom left corner pixel position
-	float j = std::floor(y -1/2);
+	float i = std::floor(x -0.5f); // bottom left corner pixel position
+	float j = std::floor(y -0.5f); 
 
 	int32_t pix_left_bottom_x = std::min(int32_t(i), int32_t(image.w) - 1);
 	int32_t pix_left_bottom_y = std::min(int32_t(j), int32_t(image.h) - 1);
@@ -49,7 +48,7 @@ Spectrum sample_bilinear(HDR_Image const &image, Vec2 uv) {
 	Spectrum pix_left_top = image.at(pix_left_top_x, pix_left_top_y);
 	Spectrum pix_right_bottom = image.at(pix_right_bottom_x, pix_right_bottom_y);
 	Spectrum pix_right_top = image.at(pix_right_top_x, pix_right_top_y);
-
+ 
 	float s = x - (i+ 0.5f);
 	float t = y - (j+ 0.5f);
 
@@ -61,6 +60,7 @@ Spectrum sample_bilinear(HDR_Image const &image, Vec2 uv) {
 								s*pix_right_top);
 
 	// return sample_nearest(image, uv); //placeholder so image doesn't look blank
+
 	return bilinear;
 }
 
@@ -68,22 +68,26 @@ Spectrum sample_bilinear(HDR_Image const &image, Vec2 uv) {
 Spectrum sample_trilinear(HDR_Image const &base, std::vector< HDR_Image > const &levels, Vec2 uv, float lod) {
 	//A1T6: sample_trilinear
 	//TODO: implement trilinear sampling strategy on using mip-map 'levels'
-	
-	// get lod from floor(lod) && floor(lod) +1
-	float lod_0 = std::floor(lod);
-	float lod_1 = lod_0;
-	if(lod_0 + 1 > levels.size()-1){
-		lod = lod_1;
-		if(lod_0 >= 1.0f){
-			lod_0 -= 1.0f;
-		}
-	}else{
-		lod_1 = lod_0 + 1.0f;
+	 
+	std::vector< HDR_Image > all_levels;
+	for (int i = 0; i < levels.size(); i++){
+		all_levels.push_back(levels[i].copy());
+	}
+	all_levels.insert(all_levels.begin(), base.copy());
+
+	if(lod <= 0.0f || lod > uint32_t(all_levels.size() - 1.0f)){
+		return sample_bilinear(all_levels[0], uv);
 	}
 
-	// get two bilinear results
-	Spectrum bilinear_0 = sample_bilinear(levels[int32_t(lod_0)], uv);
-	Spectrum bilinear_1 = sample_bilinear(levels[int32_t(lod_1)], uv);
+	// get lod from floor(lod) && floor(lod) +1
+	float lod_0 = std::floor(lod); 
+	if (lod_0 == lod){
+		return sample_bilinear(all_levels[int32_t(lod_0)], uv);
+	}
+
+	float lod_1 = lod_0 + 1.0f;
+	Spectrum bilinear_0 = sample_bilinear(all_levels[int32_t(lod_0)], uv);
+	Spectrum bilinear_1 = sample_bilinear(all_levels[int32_t(lod_1)], uv);
 
 	// return sample_nearest(base, uv); //placeholder so image doesn't look blank
 	return (1.0f - (lod - lod_0)) * bilinear_0 + (lod - lod_0) * bilinear_1;

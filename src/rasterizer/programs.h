@@ -8,6 +8,7 @@
 #include "../lib/mathlib.h"
 #include "../scene/texture.h"
 
+#include <iostream>
 namespace Programs {
 
 struct Lambertian {
@@ -111,10 +112,18 @@ struct Lambertian {
 
 		float lod = 0.0f; //<-- replace this line
 		//-----
-		float distance1 = sqrt(pow(fdx_texcoord[0], 2.0f) + pow(fdx_texcoord[1], 2.0f));
-		float distance2 = sqrt(pow(fdy_texcoord[0], 2.0f) + pow(fdy_texcoord[1], 2.0f));
-        lod = std::max(distance1, distance2);
+		
+		float f_texcoord_u_x = fdx_texcoord[0]*wh[0];
+		float f_texcoord_v_x = fdx_texcoord[1]*wh[0];
+		float f_texcoord_u_y = fdy_texcoord[0]*wh[1];
+		float f_texcoord_v_y = fdy_texcoord[1]*wh[1];
 
+		float distance1 = sqrt(pow(f_texcoord_u_x, 2.0f) + pow(f_texcoord_v_x, 2.0f));
+		float distance2 = sqrt(pow(f_texcoord_u_y, 2.0f) + pow(f_texcoord_v_y, 2.0f));
+
+        lod = std::max(distance1, distance2);
+		lod = log2(lod); 
+		
 		Vec3 normal = fa_normal.unit();
 
 		Spectrum light =
