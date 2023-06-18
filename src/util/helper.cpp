@@ -92,6 +92,98 @@ bool exitDimaond_nonVertical( int x, int y, Vec3 va, Vec3 vb, char flag){
 }
 
 
+Vec3 shorternSegmentByOne(Vec3 start, Vec3 end){ 
+	float slope = (end.y - start.y) / (end.x - start.x);
+	// return the new end point
+	if(slope >= 0){
+		if(end.x > start.x){
+			return Vec3(end.x - 1.f, end.y - slope, end.z);
+		}else{
+			return Vec3(end.x + 1.f, end.y + slope, end.z);
+		}
+	}else{
+		if(end.x > start.x){
+			return Vec3(end.x - 1.f, end.y - slope, end.z);
+		}else{
+			return Vec3(end.x + 1.f, end.y + slope, end.z);
+		}
+	}
+}
+
+
+Vec2 EndDiamondPos_NoVertical_No45Deg(Vec3 end, Vec3 start){
+	// if end is precisely on the center of a pixel 
+	if(end.x == floor(end.x) && end.y == floor(end.y)){
+		Vec3 newEnd = shorternSegmentByOne(start, end);
+		return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+	}
+	// if end x or y is on the line of center
+	else if(end.x == floor(end.x)){ 
+		int x_int = int(floor(end.x));
+		int y1 = int(floor(end.y));
+		int y2 = int(ceil(end.y));
+		if(inDiamond(end, x_int, y1)){
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+		else{
+			return Vec2(end.x, y2*1.0f);
+		}
+	}
+	else if(end.y == floor(end.y)){
+		int x1 = int(floor(end.x));
+		int x2 = int(ceil(end.x));
+		int y_int = int(floor(end.y));
+		if(inDiamond(end, x1, y_int)){
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+		else{
+			return Vec2(x2*1.0f, end.y);
+		}
+	}
+	// next check if it is in either four of the adjacent diamonds.
+	else{ 
+		int x1 = int(floor(end.x));
+		int x2 = int(ceil(end.x));
+		int y1 = int(floor(end.y));
+		int y2 = int(ceil(end.y));
+		if(inDiamond(end, x1, y1)){ 
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+		else if(inDiamond(end, x1, y2)){ 
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+		else if(inDiamond(end, x2, y1)){ 
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+		else if(inDiamond(end, x2, y2)){ 
+			Vec3 newEnd = shorternSegmentByOne(start, end);
+			return StartingDiamondPos_NoVertical_No45Deg(newEnd, start);
+		}
+        // if not in either diamonds, return the one it crosses
+		else if (exitDimaond_nonVertical(x1, y1, start, end, 'n')){
+			return Vec2(x1*1.0f, y1*1.0f);
+		}
+		else if (exitDimaond_nonVertical(x1, y2, start, end, 'n')){
+			return Vec2(x1*1.0f, y2*1.0f);
+		}
+		else if (exitDimaond_nonVertical(x2, y1, start, end, 'n')){
+			return Vec2(x2*1.0f, y1*1.0f);
+		}
+		else if (exitDimaond_nonVertical(x2, y2, start, end, 'n')){
+			return Vec2(x2*1.0f, y2*1.0f);
+		}
+		else{
+			return Vec2(-1.f, -1.f);
+		}
+
+	}
+		
+}
 
 Vec2 StartingDiamondPos_NoVertical_No45Deg(Vec3 start, Vec3 end){
 	// if start is precisely on the center of a pixel

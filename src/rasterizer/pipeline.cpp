@@ -428,8 +428,8 @@ void Pipeline< p, P, flags >::rasterize_line(
 			}
 		}
 		// starting from va, either va in 4 of the ajacent diamond, or (va,vb) cross the diamond
-		Vec2 startPixel = StartingDiamondPos_NoVertical_No45Deg(va_pos, vb_pos);
-		Vec2 endPixel = StartingDiamondPos_NoVertical_No45Deg(vb_pos, va_pos);
+		Vec2 startPixel = StartingDiamondPos_NoVertical_No45Deg(va_pos, vb_pos); 
+		Vec2 endPixel = EndDiamondPos_NoVertical_No45Deg(vb_pos, va_pos);
 		int x_dir = vb_pos.x - va_pos.x > 0 ? 1 : -1;
 		int y_dir = vb_pos.y - va_pos.y > 0 ? 1 : -1;
 		float threshold = 0.5;
