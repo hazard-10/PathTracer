@@ -39,6 +39,10 @@ void Pipeline< primitive_type, Program, flags >::run(
 		shaded_vertices.emplace_back(sv);
 	}
 
+	std::vector< Vec3 > const &samples = framebuffer.sample_pattern.centers_and_weights;
+	for (uint32_t sample_index = 0; sample_index < samples.size(); ++sample_index) { 
+		float sample_shift_x = samples[sample_index].x - 0.5f;
+		float sample_shift_y = samples[sample_index].y - 0.5f;
 	//--------------------------
 	//assemble + clip + homogeneous divide vertices:
 	std::vector< ClippedVertex > clipped_vertices;
@@ -90,6 +94,11 @@ void Pipeline< primitive_type, Program, flags >::run(
 		static_assert( primitive_type == PrimitiveType::Lines, "Unsupported primitive type." );
 	}
 
+	// --- A1T7: shift before rasterization
+	for (uint32_t i = 0; i < clipped_vertices.size(); ++i) {
+		clipped_vertices[i].fb_position.x -= sample_shift_x;
+		clipped_vertices[i].fb_position.y -= sample_shift_y;
+	}
 
 	//--------------------------
 	//rasterize primitives:
@@ -132,7 +141,7 @@ void Pipeline< primitive_type, Program, flags >::run(
 
 		//local names that refer to destination sample in framebuffer:
 		float &fb_depth = framebuffer.depth_at(x,y,0);
-		Spectrum &fb_color = framebuffer.color_at(x,y,0);
+		Spectrum &fb_color = framebuffer.color_at(x,y,sample_index);
 
 		//depth test:
 		if constexpr ((flags & PipelineMask_Depth) == Pipeline_Depth_Always) {
@@ -195,7 +204,7 @@ void Pipeline< primitive_type, Program, flags >::run(
 		}
 	}
 
-	
+	}
 
 }
 
@@ -364,9 +373,6 @@ void Pipeline< p, P, flags >::clip_triangle(
 
  */
 
-/*
-	When on-boundary, only accepts left and bottom
-*/
 
 /* doesn't count boundary */
 
