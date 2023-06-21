@@ -331,8 +331,74 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
  */
 std::optional<Halfedge_Mesh::EdgeRef> Halfedge_Mesh::flip_edge(EdgeRef e) {
 	//A2L1: Flip Edge
+
+	// check if edge is boundary
+	if(e->on_boundary()) return std::nullopt;
+
+	// check if flipping would create invalid mesh, TODO
 	
-    return std::nullopt;
+
+	// rotate edge
+	// update vertex, halfedge, edge, face
+
+
+	// get two updated vertices
+	HalfedgeRef h1 = e->halfedge;
+	HalfedgeRef h2 = e->halfedge->twin;
+
+	//prepare vertices
+	VertexRef v1_old = h1->vertex;
+	VertexRef v2_old = h2->vertex;
+	VertexRef v1_new = h2->next->next->vertex;
+	VertexRef v2_new = h1->next->next->vertex;
+
+	//Prepare 3 halfedges whose links will be changed
+	HalfedgeRef h1_new_prev = h2->next;
+	HalfedgeRef h2_new_prev = h1->next;   
+
+	HalfedgeRef h1_new_next = h1->next->next;
+	HalfedgeRef h2_new_next = h2->next->next;
+
+	HalfedgeRef h1_old_prev = h1;
+	HalfedgeRef h2_old_prev = h2;
+
+	for(HalfedgeRef h_iter = h1->next ; h_iter !=h1; h_iter= h_iter->next){ // find e's prev
+		if(h_iter->next == h1){
+			h1_old_prev = h_iter;
+			break;
+		}
+	}
+	for(HalfedgeRef h_iter = h2->next ; h_iter !=h2; h_iter= h_iter->next){ // find e's prev
+		if(h_iter->next == h2){
+			h2_old_prev = h_iter;
+			break;
+		}
+	}
+	// reassign vertices
+	v1_old->halfedge = h1_new_prev;
+	v2_old->halfedge = h2_new_prev;
+	h1->vertex = v1_new;
+	h2->vertex = v2_new;
+
+	// reconnect halfedges
+	h1_old_prev->next = h1_new_prev;
+	h2_old_prev->next = h2_new_prev;
+
+	h1_new_prev->next = h1;
+	h2_new_prev->next = h2;
+
+	h1->next = h1_new_next;
+	h2->next = h2_new_next;
+
+	// reassign face-halfedge iterator
+	h1_new_prev->face = h1->face;
+	h2_new_prev->face = h2->face;
+	h1->face->halfedge = h1;
+	h2->face->halfedge = h2;
+
+
+	return h1->edge;
+    // return std::nullopt;
 }
 
 

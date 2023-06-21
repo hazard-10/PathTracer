@@ -40,7 +40,7 @@ public:
 	class Face;
 	class Halfedge;
 
-	/*
+	/*->next
 	 * Rather than using raw pointers to mesh elements, we store references
 	 * as iterators. For convenience, we give shorter names to these
 	 * iterators (e.g., EdgeRef instead of list<Edge>::iterator).
