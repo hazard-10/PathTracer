@@ -221,9 +221,168 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::bisect_edge(EdgeRef e) {
  */
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e) {
 	// A2L2 (REQUIRED): split_edge
+	std::cout <<describe() << std::endl;
+
+	//helper for calculating face area
+	auto area = [](Vertex v1, Vertex v2, Vertex v3) {
+		return cross(v2.position - v1.position, v3.position - v1.position).norm() / 2.0f;
+	};
+
+	auto list_of_halfedges = [](HalfedgeRef h){
+		std::vector<HalfedgeCRef> halfedges;
+		halfedges.push_back(h);
+		for(auto h_it = h->next; h_it != h; h_it = h_it->next){
+			halfedges.push_back(h_it);
+		}
+		return halfedges;
+	};
 	
-	(void)e; //this line avoids 'unused parameter' warnings. You can delete it as you fill in the function.
-    return std::nullopt;
+	auto print_single_halfEdge = [](HalfedgeRef h){
+		std::cout <<"halfedge id " << h->id << std::endl;
+		std::cout <<"	vertex id " << h->vertex->id << std::endl;
+		for(HalfedgeRef hv = h->vertex->halfedge; hv!= h; hv++){
+			std::cout <<"		vertex's halfedge id has" << hv-> id << std::endl;
+		}
+		std::cout <<"	next id " << h->next->id << std::endl;
+		std::cout <<"	twin id " << h->twin->id << std::endl;
+	};
+
+	auto print_full_mesh = [](HalfedgeRef h){
+		std::cout <<"Debug log"<< std::endl;
+
+		std::cout <<"halfedge id " << h->id << std::endl;
+		std::cout <<"	face id " << h->face->id << std::endl;
+		std::cout <<"	edge id " << h->edge->id << std::endl;
+		std::cout <<"	vertex id " << h->vertex->id << std::endl;
+		for(HalfedgeRef hv = h->vertex->halfedge; hv!= h; hv++){
+			std::cout <<"		vertex's halfedge id has" << hv-> id << std::endl;
+		}
+		std::cout <<"	next id " << h->next->id << std::endl;
+		std::cout <<"	twin id " << h->twin->id << std::endl;
+
+		for(HalfedgeRef h_iter = h->next ; h_iter !=h; h_iter = h_iter->next){
+			std::cout <<"halfedge id " << h_iter->id << std::endl;
+			std::cout <<"	face id " << h->face->id << std::endl;
+			std::cout <<"	edge id " << h->edge->id << std::endl;
+			std::cout <<"	vertex id " << h_iter->vertex->id << std::endl;
+			for(HalfedgeRef hv = h_iter->vertex->halfedge; hv!= h_iter; hv++){
+				std::cout <<"		vertex's halfedge id has" << hv-> id << std::endl;
+			}
+			std::cout <<"	next id " << h_iter->next->id << std::endl;
+			std::cout <<"	twin id " << h_iter->twin->id << std::endl;
+		}
+
+	};
+	
+	/* 1. bisect_edge - Create new vertex, edge and halfedge
+	   2. split_face - Create new edge 1~2, face 1~2, and halfedges (2~4)
+	   3. Reassign connectivity
+	   For each step, 
+	   		a. collect existing elements, 
+			b. allocate new elements & set data, 
+			c. reassign connectivity
+	*/
+
+	// a. collect required references
+	HalfedgeRef h1 = e->halfedge;
+	HalfedgeRef h2 = h1->twin;
+	HalfedgeRef h1_next = h1->next;
+	HalfedgeRef h2_next = h2->next;
+	HalfedgeRef h1_2next = h1_next->next;
+	HalfedgeRef h2_2next = h2_next->next;
+
+	VertexRef v1 = h1->vertex;
+	VertexRef v2 = h2->vertex;
+
+	// print_full_mesh(h1);
+	// b. Create new elements, set data
+	// b.1. bisect_edge
+	VertexRef v_middle = emplace_vertex();
+	v_middle->position = (v1->position + v2->position) / 2.0f;
+	interpolate_data({v1, v2}, v_middle); //set bone_weights
+
+	EdgeRef e2 = emplace_edge();
+	e2->sharp = e->sharp; //copy sharpness flag
+
+	HalfedgeRef h1_new = emplace_halfedge();
+	interpolate_data({h1, h1->next}, h1_new); //set corner_uv, corner_normal
+	HalfedgeRef h2_new = emplace_halfedge();
+	interpolate_data({h2, h2->next}, h2_new); //set corner_uv, corner_normal
+
+	// b.2 Split_face
+	// new edge 1~2, face 1~2, and halfedges (2~4)
+	EdgeRef e3 = emplace_edge(e->sharp); 
+	FaceRef f1_new = emplace_face(false);
+
+	HalfedgeRef h3 = emplace_halfedge();
+	interpolate_data(list_of_halfedges(h1), h3);
+	HalfedgeRef h3_rev = emplace_halfedge();
+	interpolate_data(list_of_halfedges(h1), h3_rev);	
+	
+	// Prepare probably unused data
+	EdgeRef e4 = emplace_edge(e->sharp);
+	FaceRef f2_new = emplace_face(false);
+	HalfedgeRef h4 = emplace_halfedge();
+	HalfedgeRef h4_rev = emplace_halfedge();
+	interpolate_data(list_of_halfedges(h2), h4);
+	interpolate_data(list_of_halfedges(h2), h4_rev);
+	
+	// c. Reassign connectivity 
+	// (careful about ordering so you don't overwrite values you may need later!)
+
+	// c.1. non_halfedge connectivity
+	v_middle->halfedge = h1_new;
+	e2->halfedge = h1_new;
+	e3->halfedge = h3;
+	f1_new->halfedge = h3_rev;
+	if(!e->on_boundary()){
+		e4->halfedge = h4;
+		f2_new->halfedge = h4_rev;
+	}
+	// c.2. halfedge connectivity
+	// twin = twin_; next = next_; vertex = vertex_; edge = edge_; face = face_;
+	if(e->on_boundary()){
+		h1->set_tnvef(h2_new, h3, h1->vertex, e, h1->face);
+		h2->set_tnvef(h1_new, h2_new, h2->vertex, e2, h2->face);
+		h1_new->set_tnvef(h2, h1_next, v_middle, e2, f1_new);
+		h2_new->set_tnvef(h1, h2_next, v_middle, e, h2->face);
+		h1_next->set_tnvef(h1_next->twin, h3_rev, h1_next->vertex, h1_next->edge, f1_new);
+		h3->set_tnvef(h3_rev, h1_2next, v_middle, e3, h1->face);
+		h3_rev->set_tnvef(h3, h1_new, h1_2next->vertex, e3, f1_new);
+		// double check existing face and edge connectivity
+		e->halfedge = h1;
+		h1->face->halfedge = h1;
+
+		// delete unused
+		erase_edge(e4);
+		erase_face(f2_new);
+		erase_halfedge(h4);
+		erase_halfedge(h4_rev);
+	}else{
+		h1->set_tnvef(h2_new, h3, h1->vertex, e, h1->face);
+		h2->set_tnvef(h1_new, h4, h2->vertex, e2, h2->face);
+		h1_new->set_tnvef(h2, h1_next, v_middle, e2, f1_new);
+		h2_new->set_tnvef(h1, h2_next, v_middle, e, f2_new);
+
+		h1_next->set_tnvef(h1_next->twin, h3_rev, h1_next->vertex, h1_next->edge, f1_new);
+		h3->set_tnvef(h3_rev, h1_2next, v_middle, e3, h1->face);
+		h3_rev->set_tnvef(h3, h1_new, h1_2next->vertex, e3, f1_new);
+		// second new face
+		h2_next->set_tnvef(h2_next->twin, h4_rev, h2_next->vertex, h2_next->edge, f2_new);
+		h4->set_tnvef(h4_rev, h2_2next, v_middle, e4, h2->face);
+		h4_rev->set_tnvef(h4, h2_new, h2_2next->vertex, e4, f2_new);
+		// double check existing face and edge connectivity
+		e->halfedge = h1;
+		h1->face->halfedge = h1;
+
+	}
+	std::cout << std::endl << std::endl << "split_edge done --- " << std::endl;
+	// print_full_mesh(h1);
+	// print_full_mesh(h1_new);
+
+	std::cout <<describe() << std::endl;
+	return v_middle;
+	
 }
 
 
@@ -341,10 +500,35 @@ std::optional<Halfedge_Mesh::EdgeRef> Halfedge_Mesh::flip_edge(EdgeRef e) {
 	// rotate edge
 	// update vertex, halfedge, edge, face
 
+	// helper function for debug and print
+	auto print_halfEdge = [](HalfedgeRef h){
+		std::cout <<"halfedge id " << h->id << std::endl;
+		std::cout <<"	vertex id " << h->vertex->id << std::endl;
+		
+		
+		for(HalfedgeRef hv = h->vertex->halfedge; hv!= h; hv++){
+			std::cout <<"		vertex's halfedge id has" << hv-> id << std::endl;
+		}
+
+		std::cout <<"	next id " << h->next->id << std::endl;
+		std::cout <<"	twin id " << h->twin->id << std::endl;
+	};
 
 	// get two updated vertices
 	HalfedgeRef h1 = e->halfedge;
 	HalfedgeRef h2 = e->halfedge->twin;
+
+	
+	// std::cout <<"Debug Info"<< std::endl;
+	// print_halfEdge(h1);
+	// for(HalfedgeRef h_iter = h1->next ; h_iter !=h1; h_iter = h_iter->next){
+	// 	print_halfEdge(h_iter);
+	// }
+	// std::cout <<"Debug h2"<< std::endl;
+	// print_halfEdge(h2);
+	// for(HalfedgeRef h_iter = h2->next ; h_iter !=h2; h_iter= h_iter->next){ 
+	// 	print_halfEdge(h_iter);
+	// }
 
 	//prepare vertices
 	VertexRef v1_old = h1->vertex;
