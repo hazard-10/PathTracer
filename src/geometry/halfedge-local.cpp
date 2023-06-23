@@ -636,6 +636,130 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::dissolve_edge(EdgeRef e) {
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) {
 	//A2L3: Collapse Edge
 
+	/*
+	break collapsing into micro steps, and assume valid operation
+	For the edge deleted,
+		if some faces loses one edge
+			if the face originally has 3 edges
+				remove the face
+				remove unused inner halfedges, plus outter if on boundary
+				if vertex & edge not used, remove them
+			else:
+				remove the edge, update halfedges
+				remove the halfedge
+	For the two vertex collapsed,
+		for affected faces
+			collapse edge, Update halfedges
+			collapse vertex
+	*/
+
+	auto find_prev_halfedge = [&](HalfedgeRef h){
+		HalfedgeRef iter = h->next;
+		while(iter != h){
+			if(iter->next == h){
+				return iter;
+			}
+			iter = iter->next;
+		}
+		return h;
+	};
+
+	auto remove_all_halfedge = [&](FaceRef f){
+		HalfedgeRef h = f->halfedge;
+		HalfedgeRef iter = h->next;
+		while(iter != h){
+			HalfedgeRef next_place_holder = iter->next;
+			erase_halfedge(iter);
+			iter = next_place_holder;
+		}
+		erase_halfedge(h);
+	};
+
+	auto remove_edge_both_he = [&](EdgeRef e){
+		HalfedgeRef h1 = e->halfedge;
+		HalfedgeRef h2 = h1->twin;
+		erase_edge(e);
+		erase_halfedge(h1);
+		erase_halfedge(h2);
+	};
+
+	auto collapse_face = [&](HalfedgeRef h){
+		FaceRef f = h->face;
+		if(f->degree() == 3){
+			HalfedgeRef h_prev = find_prev_halfedge(h);
+			HalfedgeRef h_next = h->next;
+			// if both sides are boundary, their edges will be deleted right away
+			if(h_prev->edge->on_boundary() && h_next->edge->on_boundary()){
+				remove_edge_both_he(h_prev->edge);
+				remove_edge_both_he(h_next->edge);
+				erase_vertex(h_prev->vertex);
+			}
+			// if neither sides is boundary, reassign outer twins, then remove inner halfedges only
+			else if(!h_prev->edge->on_boundary() && !h_next->edge->on_boundary()){
+				h_prev->twin->twin = h_next->twin;
+				h_next->twin->twin = h_prev->twin;
+				erase_halfedge(h_prev);
+				erase_halfedge(h_next);
+			}else{ // if one side is boundary, clamp to the other side's halfedge, then delete
+				HalfedgeRef is_bound = h_prev;
+				HalfedgeRef not_bound = h_next;
+				if(h_next->edge->on_boundary()){
+					is_bound = h_next;
+					not_bound = h_prev;
+				}
+				// reaassign twin, edge, vertex of the boundary outer halfedge
+				HalfedgeRef bound_twin = is_bound->twin;
+				bound_twin->twin = not_bound->twin;
+				bound_twin->edge = not_bound->edge;
+				bound_twin->vertex = not_bound->vertex;
+				not_bound->twin = bound_twin;
+				// delete two inner halfedges and the un-used edge
+				erase_halfedge(is_bound);
+				erase_halfedge(not_bound);
+				erase_edge(is_bound->edge);
+			}
+			
+			// delete halfedge, and the other half if needed
+			if(h->edge->on_boundary()){
+				erase_halfedge(h->twin);
+			}
+			erase_halfedge(h); 
+			// collapsed edge will not be deleted here, in case deleted twice
+			erase_face(f);
+
+
+		}else{
+			// Reconnect inner adjacent halfedges
+			HalfedgeRef h_prev = find_prev_halfedge(h);
+			HalfedgeRef h_next = h->next;
+			h_prev->next = h_next;
+			// reassign face in case face was linked to next-deleted h
+			h->face->halfedge = h_next;
+			// delete halfedge, and the other half if needed
+			if(h->edge->on_boundary()){
+				h_prev = find_prev_halfedge(h->twin);
+				h_next = h->twin->next;
+				h_prev->next = h_next;
+				erase_halfedge(h->twin);
+			}
+			erase_halfedge(h);
+			// collapsed edge will not be deleted here, in case deleted twice
+		}
+	};
+
+
+	// execute the micro steps
+	FaceRef f1 = e->halfedge->face;
+	FaceRef f2 = e->halfedge->twin->face;
+	if(e->on_boundary()){
+		// f2 not used
+	}
+	
+	erase_edge(h->edge);
+
+
+
+
 	//Reminder: use interpolate_data() to merge corner_uv / corner_normal data on halfedges
 	// (also works for bone_weights data on vertices!)
 	
