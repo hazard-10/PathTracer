@@ -221,7 +221,7 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::bisect_edge(EdgeRef e) {
  */
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e) {
 	// A2L2 (REQUIRED): split_edge
-	std::cout <<describe() << std::endl;
+	
 
 	//helper for calculating face area
 	auto area = [](Vertex v1, Vertex v2, Vertex v3) {
@@ -376,11 +376,7 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e) {
 		h1->face->halfedge = h1;
 
 	}
-	std::cout << std::endl << std::endl << "split_edge done --- " << std::endl;
-	// print_full_mesh(h1);
-	// print_full_mesh(h1_new);
-
-	std::cout <<describe() << std::endl;
+	
 	return v_middle;
 	
 }
