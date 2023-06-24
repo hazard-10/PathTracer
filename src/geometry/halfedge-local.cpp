@@ -652,7 +652,25 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 			collapse edge, Update halfedges
 			collapse vertex
 	*/
+	std::cout << std::endl << "Debug: before" << describe() << std::endl;
+	// construct references
+	HalfedgeRef h1 = e->halfedge;
+	HalfedgeRef h2 = h1->twin;
+	VertexRef v1 = h1->vertex;
+	VertexRef v2 = h2->vertex;
+	std::unordered_map<uint32_t, HalfedgeRef> h_map; // that connected to v1 or v2, except h1 and h2
 
+	for (VertexRef v : {v1, v2}){
+		HalfedgeRef h_iter = v->halfedge;
+		do{
+			h_map[h_iter->id] = h_iter;
+			h_iter = h_iter->twin->next;
+		}
+			while(h_iter != v->halfedge);
+	}
+
+	// declare micro steps
+		
 	auto find_prev_halfedge = [&](HalfedgeRef h){
 		HalfedgeRef iter = h->next;
 		while(iter != h){
@@ -664,42 +682,57 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 		return h;
 	};
 
-	auto remove_all_halfedge = [&](FaceRef f){
-		HalfedgeRef h = f->halfedge;
-		HalfedgeRef iter = h->next;
-		while(iter != h){
-			HalfedgeRef next_place_holder = iter->next;
-			erase_halfedge(iter);
-			iter = next_place_holder;
-		}
-		erase_halfedge(h);
-	};
-
 	auto remove_edge_both_he = [&](EdgeRef e){
 		HalfedgeRef h1 = e->halfedge;
 		HalfedgeRef h2 = h1->twin;
+		h_map.erase(h1->id);
+		h_map.erase(h2->id);
 		erase_edge(e);
 		erase_halfedge(h1);
 		erase_halfedge(h2);
 	};
 
-	auto collapse_face = [&](HalfedgeRef h){
+	auto collapse_edge_connected_face = [&](HalfedgeRef h){
 		FaceRef f = h->face;
-		if(f->degree() == 3){
+		if(f->degree() == 3){   
+			// remove faces, unused halfedges, vertex, edge, leave a valid mesh + e
+			// re-assign outer twins
 			HalfedgeRef h_prev = find_prev_halfedge(h);
 			HalfedgeRef h_next = h->next;
 			// if both sides are boundary, their edges will be deleted right away
 			if(h_prev->edge->on_boundary() && h_next->edge->on_boundary()){
+				HalfedgeRef h_prev_t_prev = find_prev_halfedge(h_prev->twin);
+				HalfedgeRef h_next_t_next = h_next->twin->next;
+				h_prev_t_prev->next = h;
+				h->next = h_next_t_next;
+				h->face = h_prev_t_prev->face;
+
 				remove_edge_both_he(h_prev->edge);
 				remove_edge_both_he(h_next->edge);
 				erase_vertex(h_prev->vertex);
 			}
 			// if neither sides is boundary, reassign outer twins, then remove inner halfedges only
 			else if(!h_prev->edge->on_boundary() && !h_next->edge->on_boundary()){
+				EdgeRef e_prev = h_prev->edge;
+				EdgeRef e_next = h_next->edge;
 				h_prev->twin->twin = h_next->twin;
 				h_next->twin->twin = h_prev->twin;
+				h_next->twin->edge = e_prev;
+				// re-assign vertex, edge, face
+				h_prev->vertex->halfedge = h_prev->twin->next;
+				e_prev->halfedge = h_prev->twin;
+				h->twin->face->halfedge = h->twin->next;
+
+				h_map.erase(h_prev->id);
+				h_map.erase(h_next->id);
 				erase_halfedge(h_prev);
 				erase_halfedge(h_next);
+				erase_edge(e_next);
+				if(h->edge->on_boundary()){
+					HalfedgeRef h_twin_prev = find_prev_halfedge(h->twin);
+					HalfedgeRef h_twin_next = h->twin->next;
+					h_twin_prev->next = h_twin_next;
+				}
 			}else{ // if one side is boundary, clamp to the other side's halfedge, then delete
 				HalfedgeRef is_bound = h_prev;
 				HalfedgeRef not_bound = h_next;
@@ -713,17 +746,23 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 				bound_twin->edge = not_bound->edge;
 				bound_twin->vertex = not_bound->vertex;
 				not_bound->twin = bound_twin;
+				if(h->edge->on_boundary()){
+					if(bound_twin->next == h->twin){
+						bound_twin->next = h->twin->next;
+					}else{
+						HalfedgeRef h_twin_prev = find_prev_halfedge(h->twin);
+						h_twin_prev->next = bound_twin;
+					}
+					
+				}
 				// delete two inner halfedges and the un-used edge
+				h_map.erase(is_bound->id);
+				h_map.erase(not_bound->id);
 				erase_halfedge(is_bound);
 				erase_halfedge(not_bound);
 				erase_edge(is_bound->edge);
 			}
 			
-			// delete halfedge, and the other half if needed
-			if(h->edge->on_boundary()){
-				erase_halfedge(h->twin);
-			}
-			erase_halfedge(h); 
 			// collapsed edge will not be deleted here, in case deleted twice
 			erase_face(f);
 
@@ -740,30 +779,48 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 				h_prev = find_prev_halfedge(h->twin);
 				h_next = h->twin->next;
 				h_prev->next = h_next;
-				erase_halfedge(h->twin);
 			}
-			erase_halfedge(h);
 			// collapsed edge will not be deleted here, in case deleted twice
 		}
 	};
 
 
+
 	// execute the micro steps
-	FaceRef f1 = e->halfedge->face;
-	FaceRef f2 = e->halfedge->twin->face;
-	if(e->on_boundary()){
-		// f2 not used
+	collapse_edge_connected_face(h1);	
+	if(!e->on_boundary()){
+		collapse_edge_connected_face(h2);
 	}
+	// collapse vertex
+	VertexRef v_mid = emplace_vertex();
+	v_mid->position = (v1->position + v2->position)/2;
+
+	// delete unused
+	h_map.erase(h1->id);
+	h_map.erase(h2->id);
+	erase_halfedge(h1);
+	erase_halfedge(h2);
+	erase_edge(e);
 	
-	erase_edge(h->edge);
+	// ready to migrate halfedges from two vertices to middle, delete duplicated edges if needed to
+	// find edge, then halfedges, excluding: e, h1, h2, same_vertex_end_point 
+	for (const auto& pair : h_map) {
+		HalfedgeRef h_iter = pair.second;
+		h_iter->vertex = v_mid;
+		v_mid->halfedge = h_iter;
+    }
 
-
+		
+	
+	erase_vertex(v1);
+	erase_vertex(v2);
 
 
 	//Reminder: use interpolate_data() to merge corner_uv / corner_normal data on halfedges
 	// (also works for bone_weights data on vertices!)
 	
-    return std::nullopt;
+	std::cout << "Debug: after" << describe() << std::endl;
+    return v_mid;
 }
 
 /*
