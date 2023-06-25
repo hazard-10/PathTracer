@@ -541,7 +541,6 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	//A2L4: Extrude Face
 	// Reminder: This function does not update the vertex positions.
 	
-	std::cout << std::endl << describe() << std::endl;
 	if(f->boundary){
 		return std::nullopt;
 	}
@@ -586,7 +585,6 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	}
 	f->halfedge = new_center_halfedges[0];
 	
-	std::cout << std::endl <<"Middle "<< describe() << std::endl;
 	/*
 		handle outer quad	
 	*/
@@ -659,7 +657,7 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 		new_quad_edges[i]->halfedge = h_prev;
 
 	}
-	std::cout << std::endl <<"Final "<< describe() << std::endl;
+	// std::cout << std::endl <<"Final "<< describe() << std::endl;
     return f;
 }
 
