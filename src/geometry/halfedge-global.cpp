@@ -185,17 +185,25 @@ void Halfedge_Mesh::linear_subdivide() {
 
 	// For every vertex, assign its current position to vertex_positions[v]:
 
-	//(TODO)
+	for(VertexRef v = vertices.begin(); v != vertices.end(); ++v){
+		vertex_positions[v] = v->position;
+	}
 
     // For every edge, assign the midpoint of its adjacent vertices to edge_vertex_positions[e]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Edge)
 
-	//(TODO)
+	for(EdgeRef e = edges.begin(); e != edges.end(); ++e){
+		edge_vertex_positions[e] = e->center();
+	}
 
     // For every *non-boundary* face, assign the centroid (i.e., arithmetic mean) to face_vertex_positions[f]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Face)
 
-	//(TODO)
+	for(FaceRef f = faces.begin(); f != faces.end(); ++f){
+		if(!f->boundary){
+			face_vertex_positions[f] = f->center();
+		}
+	}
 
 
 	//use the helper function to actually perform the subdivision:
@@ -211,6 +219,7 @@ void Halfedge_Mesh::linear_subdivide() {
  * (NOTE: uses catmark_subdivide_helper for subdivision)
  */
 void Halfedge_Mesh::catmark_subdivide() {
+	std::cout << "before" << describe() << std::endl;
 	std::unordered_map< VertexCRef, Vec3 > vertex_positions;
 	std::unordered_map< EdgeCRef, Vec3 > edge_vertex_positions;
 	std::unordered_map< FaceCRef, Vec3 > face_vertex_positions;
@@ -225,15 +234,89 @@ void Halfedge_Mesh::catmark_subdivide() {
 	// https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
 
 	// Faces
+	for(FaceRef f = faces.begin(); f != faces.end(); ++f){
+		if(!f->boundary){
+			face_vertex_positions[f] = f->center();
+		}
+	}
 
 	// Edges
+	/*
+	setting the new vertex position at each edge 
+	to the average of the new adjacent face positions (from step 1) 
+	and the original edge endpoint positions
+	*/
+	for(EdgeRef e = edges.begin(); e != edges.end(); ++e){
+		Vec3 sum = e->halfedge->vertex->position + e->halfedge->twin->vertex->position;
+		int count = 2;
+		if(faces.size() > 2){
+			if(face_vertex_positions.find(e->halfedge->face) != face_vertex_positions.end()){
+				sum += face_vertex_positions[e->halfedge->face];
+				count += 1;
+			}
+			if(face_vertex_positions.find(e->halfedge->twin->face) != face_vertex_positions.end()){
+				sum += face_vertex_positions[e->halfedge->twin->face];
+				count += 1;
+			}
+		}
+		edge_vertex_positions[e] = sum / float(count);
+	}
 
 	// Vertices
+	/*
+	setting the new vertex position at each vertex to the weighted sum
+
+	(Q+2R+(n-3)S) / n
+ 
+	where n is the degree of vertex v, (i.e., the number of faces containing v), and
+	Q is the average of all new face position for faces containing v,
+	R is the average of all original edge midpoints for edges containing v, and
+	S is the original vertex position for vertex.
+	*/
+	
+	for(VertexRef v = vertices.begin(); v != vertices.end(); ++v){
+		int n = v->degree();
+		Vec3 Q_ = Vec3(0.0f, 0.0f, 0.0f);
+		int count_Q = 0;
+		Vec3 R_ = Vec3(0.0f, 0.0f, 0.0f);
+		int count_R = 0;
+		Vec3 S_ = v->position;
+		HalfedgeRef h_iter = v->halfedge;
+		do{
+			FaceRef f = h_iter->face;
+			EdgeRef e = h_iter->edge;
+			if(face_vertex_positions.find(f) != face_vertex_positions.end()){
+				Q_ += face_vertex_positions[f];
+				count_Q++;
+			}
+			R_ += e->center();
+			count_R++;
+			h_iter = h_iter->twin->next;
+		}
+		while(h_iter != v->halfedge);
+
+		if(count_Q == 0) {
+			Q_ = Vec3(0.0f, 0.0f, 0.0f);
+		}else{
+			Q_ /= float(count_Q);
+		}
+		if(count_R == 0){
+			R_ = Vec3(0.0f, 0.0f, 0.0f);
+		}else{
+			R_ /= float(count_R);
+		}
+		if(n >=3){
+			vertex_positions[v] = (Q_ + 2.0f * R_ + (n - 3.0f) * S_) / float(n);
+		}else{
+			vertex_positions[v] = (Q_ + R_ + S_) / float(n); // hardcoded square case
+		}
+		
+	}
 
 	
 	//Now, use the provided helper function to actually perform the subdivision:
 	catmark_subdivide_helper(vertex_positions, edge_vertex_positions, face_vertex_positions);
-
+	std::cout <<" End" << describe() << std::endl;
 }
 
 /*
