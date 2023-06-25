@@ -393,9 +393,82 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e) {
  */
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::inset_vertex(FaceRef f) {
 	// A2Lx4 (OPTIONAL): inset vertex
+	if(f->boundary){
+		return std::nullopt;
+	}
+
+	// create vertex, edges, and faces
+	VertexRef mid = emplace_vertex();
+	mid->position = f->center();
+	std::vector<EdgeRef> new_edges ;
+	std::vector<FaceRef> new_faces ;
+	std::vector<HalfedgeRef> used_halfedges ;
+
+	HalfedgeRef h_iter = f->halfedge;
+	for(uint32_t i = 0; i<f->degree(); i++){
+		EdgeRef e = emplace_edge(f->halfedge->edge->sharp);
+		FaceRef f_new = emplace_face(false);
+		new_edges.push_back(e);
+		new_faces.push_back(f_new);
+		used_halfedges.push_back(h_iter);
+		h_iter = h_iter->next;
+	}
+
+	// create halfedges
+	uint32_t edge_index = 0;
+	HalfedgeRef last_iter = h_iter;
+	for(uint32_t i = 0; i<f->degree(); i++){
+		h_iter = used_halfedges[i];
+		uint32_t edge_index_2 = (edge_index+1)%new_edges.size();
+		HalfedgeRef h_next = emplace_halfedge();
+		HalfedgeRef h_prev = emplace_halfedge();
+
+		// set halfedge connectivity
+		h_iter->set_tnvef(
+			h_iter->twin,
+			h_next,
+			h_iter->vertex,
+			h_iter->edge,
+			new_faces[edge_index]
+		);
+		h_next->set_tnvef(
+			h_iter, // placeholder
+			h_prev, 
+			h_iter->twin->vertex,
+			new_edges[edge_index_2],
+			new_faces[edge_index]
+		);
+		h_prev->set_tnvef(
+			h_iter, // placeholder
+			h_iter,
+			mid,
+			new_edges[edge_index],
+			new_faces[edge_index]
+		);
+
+
+		if(last_iter!=h_iter){
+			h_prev->twin = last_iter->next;
+			last_iter->next->twin = h_prev;
+		}
+
+		new_faces[edge_index]->halfedge = h_iter;
+		new_edges[edge_index]->halfedge = h_prev;
+		new_edges[edge_index_2]->halfedge = h_next;
+
+		edge_index++;
+		last_iter = h_iter;
+	}
 	
-	(void)f;
-    return std::nullopt;
+	last_iter = used_halfedges[used_halfedges.size()-1];
+	h_iter = used_halfedges[0];
+	// connect the missing start and end
+	last_iter->next->twin = h_iter->next->next;
+	h_iter->next->next->twin = last_iter->next;
+	mid->halfedge = h_iter->next->next;
+	
+	erase_face(f);
+    return mid;
 }
 
 
@@ -652,7 +725,6 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 			collapse edge, Update halfedges
 			collapse vertex
 	*/
-	std::cout << std::endl << "Debug: before" << describe() << std::endl;
 	// construct references
 	HalfedgeRef h1 = e->halfedge;
 	HalfedgeRef h2 = h1->twin;
@@ -815,11 +887,8 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) 
 	erase_vertex(v1);
 	erase_vertex(v2);
 
-
 	//Reminder: use interpolate_data() to merge corner_uv / corner_normal data on halfedges
 	// (also works for bone_weights data on vertices!)
-	
-	std::cout << "Debug: after" << describe() << std::endl;
     return v_mid;
 }
 
