@@ -540,10 +540,125 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::bevel_edge(EdgeRef e) {
 std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	//A2L4: Extrude Face
 	// Reminder: This function does not update the vertex positions.
-	// Remember to also fill in extrude_helper (A2L4h)
+	
+	if(f->boundary){
+		return std::nullopt;
+	}
+	/*
+		Creates the center new face, connect inner halfedges, face, & vertices
+	*/
+	FaceRef f_center = emplace_face(false);
+	std::vector<HalfedgeRef> new_center_halfedges;
+	std::vector<HalfedgeRef> new_outer_halfedges;
+	std::vector<EdgeRef> new_edges;
+	std::vector<VertexRef> new_center_vertices;
+	// initiate the list
+	for(uint32_t i=0; i<f->degree(); i++){
+		new_center_halfedges.push_back(emplace_halfedge());
+		new_edges.push_back(emplace_edge(false));
+		new_center_vertices.push_back(emplace_vertex());
+		new_outer_halfedges.push_back(emplace_halfedge());
+	}
+	// connect the inner halfedges
+	HalfedgeRef h_iter = f->halfedge;
+	for(uint32_t i=0; i<f->degree(); i++){
+		new_center_halfedges[i]->set_tnvef(
+			new_center_halfedges[(i+1)%f->degree()],
+			new_outer_halfedges[i],
+			new_center_vertices[i],
+			new_edges[i],
+			f_center
+		);
+		new_outer_halfedges[i]->set_tnvef(
+			new_center_halfedges[i],
+			new_outer_halfedges[(i-1)%f->degree()],
+			new_center_vertices[(i+1)%f->degree()],
+			new_edges[i],
+			f
+		);
+		new_center_vertices[i]->halfedge = new_center_halfedges[i];
+		new_center_vertices[i]->position = h_iter->vertex->position;
+		new_edges[i]->halfedge = new_center_halfedges[i];
+	}
+	f_center->halfedge = new_center_halfedges[0];
+	
+	/*
+		handle outer quad	
+	*/
+	// create vertex, edges, and faces
+	
+	std::vector<EdgeRef> new_quad_edges ;
+	std::vector<FaceRef> new_quad_faces ;
+	std::vector<HalfedgeRef> used_halfedges ;
+	std::vector<HalfedgeRef> next_halfedges ;
+	std::vector<HalfedgeRef> prev_halfedges ;
 
-	(void)f;
-    return std::nullopt;
+	h_iter = f->halfedge;
+	for(uint32_t i = 0; i<f->degree(); i++){
+		EdgeRef e_new = emplace_edge(h_iter->edge->sharp);
+		FaceRef f_new = emplace_face(false);
+		HalfedgeRef h_next = emplace_halfedge();
+		HalfedgeRef h_prev = emplace_halfedge();
+		
+		new_quad_edges.push_back(e_new);
+		new_quad_faces.push_back(f_new);
+		used_halfedges.push_back(h_iter);
+		next_halfedges.push_back(h_next);
+		prev_halfedges.push_back(h_prev);
+
+		h_iter = h_iter->next;
+	}
+
+	// connect halfedges
+	for(uint32_t i = 0; i<f->degree(); i++){
+		break;
+		h_iter = used_halfedges[i];
+		HalfedgeRef last_iter = used_halfedges[(i-1)%f->degree()];
+		uint32_t next_index = (i+1)%new_edges.size();
+		uint32_t prev_index = (i-1)%new_edges.size();
+		HalfedgeRef h_next = next_halfedges[i];
+		HalfedgeRef h_prev = prev_halfedges[i];
+		HalfedgeRef h_mid = new_outer_halfedges[i];
+
+		// set halfedge connectivity
+		h_iter->set_tnvef(
+			h_iter->twin,
+			h_next,
+			h_iter->vertex,
+			h_iter->edge,
+			new_quad_faces[i]
+		);
+		h_next->set_tnvef(
+			prev_halfedges[next_index], // next's prev
+			h_mid, 
+			used_halfedges[next_index]->vertex, // next's vertex
+			new_quad_edges[next_index], // next's edge
+			new_quad_faces[i]
+		);
+		h_mid->set_tnvef(
+			h_mid->twin,
+			h_prev,
+			h_mid->vertex,
+			h_mid->edge,
+			new_quad_faces[i]
+		);
+		h_prev->set_tnvef(
+			h_iter, 
+			next_halfedges[prev_index], // prev's next
+			used_halfedges[prev_index]->vertex, // prev's vertex
+			new_quad_edges[prev_index], // prev's edge
+			new_quad_faces[i]
+		);
+		// connect faces, edges, and vertices
+
+		new_quad_faces[i]->halfedge = h_iter;
+		new_edges[i]->halfedge = h_prev;
+		new_edges[next_index]->halfedge = h_next;
+
+	}
+	
+	erase_face(f);
+    return f;
 }
 
 /*
@@ -975,6 +1090,21 @@ void Halfedge_Mesh::bevel_positions(FaceRef face, std::vector<Vec3> const &start
  */
 void Halfedge_Mesh::extrude_positions(FaceRef face, Vec3 move, float shrink) {
 	//A2L4h: Extrude Positions Helper
+
+	/*
+		linearly interpolate the vertex position from its original position
+		scale = 1 - shrink, compare to as the centroid of the face.
+	*/ 
+	Vec3 centroid = face->center();
+
+	HalfedgeRef h_iter = face->halfedge;
+	do{
+		VertexRef v = h_iter->vertex;
+		v->position = (v->position - centroid)*(1-shrink) + centroid + move;
+		h_iter = h_iter->next;
+	}
+	while(h_iter != face->halfedge);
+
 
 	//General strategy:
 	// use mesh navigation to get starting positions from the surrounding faces,
