@@ -13,7 +13,160 @@
  */
 void Halfedge_Mesh::triangulate() {
 	//A2G1: triangulation
-	
+	auto triangulate_single_face = [&](FaceRef f) {
+		if(f->degree() <= 3) return ;
+		if(f->degree()==4){
+			// create first and last triangle
+			EdgeRef e_first = emplace_edge(false);
+			FaceRef f_last = emplace_face(false);
+			HalfedgeRef first_3 = emplace_halfedge();
+			HalfedgeRef last_3 = emplace_halfedge();
+			// get references
+			HalfedgeRef first_1 = f->halfedge;
+			HalfedgeRef first_2 = first_1->next;
+			HalfedgeRef last_1 = first_2->next;
+			HalfedgeRef last_2 = last_1->next;
+			// set first triangle connectivity
+			first_2->next = first_3;
+			first_3->set_tnvef(
+				last_3,
+				first_1,
+				last_1->vertex,
+				e_first,
+				f
+			);
+			f->halfedge = first_1;
+			e_first->halfedge = first_3;
+			// set last triangle connectivity
+			last_1->face = f_last;
+			last_2->next = last_3;
+			last_2->face = f_last;
+			last_3->set_tnvef(
+				first_3,
+				last_1,
+				f->halfedge->vertex,
+				e_first,
+				f_last
+			);
+			f_last->halfedge = last_1;
+			return ;
+		}else{
+			/*
+			when degree >=5, split using loops
+			*/
+			// create vertex, edges, and faces
+			VertexRef mid = f->halfedge->vertex;
+			std::vector<EdgeRef> new_edges ;
+			std::vector<FaceRef> new_faces ;
+			std::vector<HalfedgeRef> used_halfedges ;
+
+			HalfedgeRef h_iter = f->halfedge->next->next;
+			for(uint32_t i = 0; i<f->degree()-4; i++){
+				EdgeRef e = emplace_edge(h_iter->edge->sharp);
+				FaceRef f_new = emplace_face(false);
+				new_edges.push_back(e);
+				new_faces.push_back(f_new);
+				used_halfedges.push_back(h_iter);
+				h_iter = h_iter->next;
+			}
+			// add the last edge
+			EdgeRef e_last = emplace_edge(h_iter->edge->sharp);
+
+			/* 
+				create halfedges 
+			*/
+			// initialize indexes
+			HalfedgeRef last_iter = used_halfedges[0];
+			for(uint32_t i = 0; i<used_halfedges.size(); i++){
+				h_iter = used_halfedges[i];
+				uint32_t edge_index = i;
+				uint32_t edge_index_2 = i+1;
+				HalfedgeRef h_next = emplace_halfedge();
+				HalfedgeRef h_prev = emplace_halfedge();
+
+				// set halfedge connectivity
+				h_iter->set_tnvef(
+					h_iter->twin,
+					h_next,
+					h_iter->vertex,
+					h_iter->edge,
+					new_faces[edge_index]
+				);
+				h_next->set_tnvef(
+					h_iter, // placeholder
+					h_prev, 
+					h_iter->twin->vertex,
+					new_edges[edge_index_2],
+					new_faces[edge_index]
+				);
+				h_prev->set_tnvef(
+					h_iter, // placeholder
+					h_iter,
+					mid,
+					new_edges[edge_index],
+					new_faces[edge_index]
+				);
+
+
+				if(last_iter!=h_iter){
+					h_prev->twin = last_iter->next;
+					last_iter->next->twin = h_prev;
+				}
+
+				new_faces[edge_index]->halfedge = h_iter;
+				new_edges[edge_index]->halfedge = h_prev;
+				new_edges[edge_index_2]->halfedge = h_next;
+
+				edge_index++;
+				last_iter = h_iter;
+			}
+			
+			// create first and last triangle
+			FaceRef f_last = emplace_face(false);
+			HalfedgeRef first_3 = emplace_halfedge();
+			HalfedgeRef last_3 = emplace_halfedge();
+			// set first triangle connectivity
+			HalfedgeRef first_1 = f->halfedge;
+			HalfedgeRef first_2 = first_1->next;
+			first_2->next = first_3;
+			first_3->set_tnvef(
+				used_halfedges[0]->next->next,
+				first_1,
+				used_halfedges[0]->vertex,
+				new_edges[0],
+				f
+			);
+			used_halfedges[0]->next->next->twin = first_3;
+			f->halfedge = first_1;
+			// set last triangle connectivity
+			HalfedgeRef last_1 = used_halfedges[used_halfedges.size()-1]->next;
+			HalfedgeRef last_2 = last_1->next;
+			last_1->face = f_last;
+			last_2->next = last_3;
+			last_2->face = f_last;
+			last_3->set_tnvef(
+				used_halfedges[used_halfedges.size()-1]->next,
+				last_1,
+				f->halfedge->vertex,
+				e_last,
+				f_last
+			);
+			used_halfedges[used_halfedges.size()-1]->next->twin = last_3;
+			f_last->halfedge = last_1;
+		}
+	};
+	std::cout << std::endl << describe() << std::endl;
+	std::vector<FaceRef> current_faces;
+	for (FaceRef f = faces.begin(); f != faces.end(); ++f) {
+		if(!f->boundary){
+			current_faces.push_back(f);
+			// triangulate_single_face(f);
+		}
+	}
+	for(FaceRef f: current_faces){
+		triangulate_single_face(f);
+	}
+	std::cout << std::endl <<"after editing"<< describe() << std::endl;
 }
 
 /*
