@@ -541,17 +541,20 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	//A2L4: Extrude Face
 	// Reminder: This function does not update the vertex positions.
 	
+	std::cout << std::endl << describe() << std::endl;
 	if(f->boundary){
 		return std::nullopt;
 	}
 	/*
 		Creates the center new face, connect inner halfedges, face, & vertices
 	*/
-	FaceRef f_center = emplace_face(false);
 	std::vector<HalfedgeRef> new_center_halfedges;
 	std::vector<HalfedgeRef> new_outer_halfedges;
 	std::vector<EdgeRef> new_edges;
 	std::vector<VertexRef> new_center_vertices;
+
+	uint32_t f_init_degree = f->degree();
+	HalfedgeRef h_init_iter = f->halfedge;
 	// initiate the list
 	for(uint32_t i=0; i<f->degree(); i++){
 		new_center_halfedges.push_back(emplace_halfedge());
@@ -563,25 +566,27 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	HalfedgeRef h_iter = f->halfedge;
 	for(uint32_t i=0; i<f->degree(); i++){
 		new_center_halfedges[i]->set_tnvef(
-			new_center_halfedges[(i+1)%f->degree()],
-			new_outer_halfedges[i],
+			new_outer_halfedges[i],					// twin
+			new_center_halfedges[(i+1)%f->degree()],// next
 			new_center_vertices[i],
 			new_edges[i],
-			f_center
+			f
 		);
 		new_outer_halfedges[i]->set_tnvef(
-			new_center_halfedges[i],
-			new_outer_halfedges[(i-1)%f->degree()],
+			new_center_halfedges[i],				// twin
+			new_outer_halfedges[(i-1)%f->degree()], // next
 			new_center_vertices[(i+1)%f->degree()],
 			new_edges[i],
-			f
+			f										// placeholder
 		);
 		new_center_vertices[i]->halfedge = new_center_halfedges[i];
 		new_center_vertices[i]->position = h_iter->vertex->position;
 		new_edges[i]->halfedge = new_center_halfedges[i];
+		h_iter = h_iter->next;
 	}
-	f_center->halfedge = new_center_halfedges[0];
+	f->halfedge = new_center_halfedges[0];
 	
+	std::cout << std::endl <<"Middle "<< describe() << std::endl;
 	/*
 		handle outer quad	
 	*/
@@ -593,9 +598,9 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	std::vector<HalfedgeRef> next_halfedges ;
 	std::vector<HalfedgeRef> prev_halfedges ;
 
-	h_iter = f->halfedge;
-	for(uint32_t i = 0; i<f->degree(); i++){
-		EdgeRef e_new = emplace_edge(h_iter->edge->sharp);
+	h_iter = h_init_iter;
+	for(uint32_t i = 0; i< f_init_degree; i++){
+		EdgeRef e_new = emplace_edge(h_iter->edge->sharp); // edge for prev
 		FaceRef f_new = emplace_face(false);
 		HalfedgeRef h_next = emplace_halfedge();
 		HalfedgeRef h_prev = emplace_halfedge();
@@ -610,10 +615,9 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	}
 
 	// connect halfedges
-	for(uint32_t i = 0; i<f->degree(); i++){
-		break;
+	for(uint32_t i = 0; i<f_init_degree; i++){
+		// break;
 		h_iter = used_halfedges[i];
-		HalfedgeRef last_iter = used_halfedges[(i-1)%f->degree()];
 		uint32_t next_index = (i+1)%new_edges.size();
 		uint32_t prev_index = (i-1)%new_edges.size();
 		HalfedgeRef h_next = next_halfedges[i];
@@ -622,10 +626,10 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 
 		// set halfedge connectivity
 		h_iter->set_tnvef(
-			h_iter->twin,
+			h_iter->twin, // same
 			h_next,
-			h_iter->vertex,
-			h_iter->edge,
+			h_iter->vertex, // same
+			h_iter->edge, // same
 			new_quad_faces[i]
 		);
 		h_next->set_tnvef(
@@ -636,28 +640,26 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 			new_quad_faces[i]
 		);
 		h_mid->set_tnvef(
-			h_mid->twin,
+			h_mid->twin, // same
 			h_prev,
-			h_mid->vertex,
-			h_mid->edge,
+			h_mid->vertex, // same
+			h_mid->edge,   // same
 			new_quad_faces[i]
 		);
 		h_prev->set_tnvef(
-			h_iter, 
 			next_halfedges[prev_index], // prev's next
-			used_halfedges[prev_index]->vertex, // prev's vertex
-			new_quad_edges[prev_index], // prev's edge
+			h_iter, 
+			h_mid->twin->vertex, // prev's vertex
+			new_quad_edges[i], //current edge
 			new_quad_faces[i]
 		);
 		// connect faces, edges, and vertices
 
 		new_quad_faces[i]->halfedge = h_iter;
-		new_edges[i]->halfedge = h_prev;
-		new_edges[next_index]->halfedge = h_next;
+		new_quad_edges[i]->halfedge = h_prev;
 
 	}
-	
-	erase_face(f);
+	std::cout << std::endl <<"Final "<< describe() << std::endl;
     return f;
 }
 
