@@ -155,7 +155,7 @@ void Halfedge_Mesh::triangulate() {
 			f_last->halfedge = last_1;
 		}
 	};
-	std::cout << std::endl << describe() << std::endl;
+	// std::cout << std::endl << describe() << std::endl;
 	std::vector<FaceRef> current_faces;
 	for (FaceRef f = faces.begin(); f != faces.end(); ++f) {
 		if(!f->boundary){
@@ -166,7 +166,7 @@ void Halfedge_Mesh::triangulate() {
 	for(FaceRef f: current_faces){
 		triangulate_single_face(f);
 	}
-	std::cout << std::endl <<"after editing"<< describe() << std::endl;
+	// std::cout << std::endl <<"after editing"<< describe() << std::endl;
 }
 
 /*
