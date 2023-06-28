@@ -360,43 +360,12 @@ bool Halfedge_Mesh::loop_subdivide() {
 	// the Loop subdivision rule and store them in vertex_new_pos.
 	[[maybe_unused]]
 	std::unordered_map< VertexRef, Vec3 > vertex_new_pos;
-	for(VertexRef v = vertices.begin(); v != vertices.end(); ++v){
-		int n = v->degree();
-		float u = 0.0f;
-		if(n == 3){
-			u = 3.0f / 16.0f;
-		}else{
-			u = 3.0f / (8.0f * float(n));
-		}
-		Vec3 sum = Vec3(0.0f, 0.0f, 0.0f);
-		HalfedgeRef h_iter = v->halfedge;
-		do{
-			sum += h_iter->twin->vertex->position;
-			h_iter = h_iter->twin->next;
-		}
-		while(h_iter != v->halfedge);
-		vertex_new_pos[v] = (1.0f - float(n) * u) * v->position + u * sum;
-	}
-	    
+	
 	// Next, compute the subdivided vertex positions associated with edges, and
 	// store them in edge_new_pos:
 	[[maybe_unused]]
 	std::unordered_map< EdgeRef, Vec3 > edge_new_pos;
-	for(EdgeRef e = edges.begin(); e != edges.end(); ++e){
-		HalfedgeRef h = e->halfedge;
-		Vec3 A = h->vertex->position;
-		Vec3 B = h->twin->vertex->position;
-		Vec3 C = Vec3(0.0f, 0.0f, 0.0f);
-		Vec3 D = Vec3(0.0f, 0.0f, 0.0f);
-		if(!e->on_boundary()){
-			Vec3 C = h->next->next->vertex->position;
-			Vec3 D = h->twin->next->next->vertex->position;
-			edge_new_pos[e] = 3.0f / 8.0f * (A + B) + 1.0f / 8.0f * (C + D);
-		}else{
-			edge_new_pos[e] = 0.5f * (A + B);
-		}
-	}
-    
+	
 	// Next, we're going to split every edge in the mesh, in any order, placing
 	// the split vertex at the recorded edge_new_pos.
 	//
@@ -404,9 +373,6 @@ bool Halfedge_Mesh::loop_subdivide() {
 	// edges added by splitting. So store references to the new edges:
 	[[maybe_unused]]
 	std::vector< EdgeRef > new_edges;
-	for(EdgeRef e = edges.begin(); e != edges.end(); ++e){
-		new_edges.push_back(e);
-	}
 
 	// Also note that in this loop, we only want to iterate over edges of the
 	// original mesh. Otherwise, we'll end up splitting edges that we just split
