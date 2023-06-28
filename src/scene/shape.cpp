@@ -37,7 +37,50 @@ PT::Trace Sphere::hit(Ray ray) const {
     ret.position = Vec3{}; // where was the intersection?
     ret.normal = Vec3{};   // what was the surface normal at the intersection?
 	ret.uv = Vec2{}; 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
-    return ret;
+    
+	// perform ray-sphere intersection
+	Vec3 o = ray.point;
+	Vec3 d = ray.dir;
+	float d_squared = d.norm_squared();
+	float o_squared = o.norm_squared();
+	float r = radius;
+
+	// calculate discriminant
+	float discriminant = 4 * (dot(o, d) * dot(o, d)) - 4 * d_squared * (o_squared - r * r);
+	if(discriminant < 0) return ret;
+	// check if outside of bounds
+	float discriminant_sqrt = std::sqrt(discriminant);
+
+	float t1 = (-2 * dot(o, d) + discriminant_sqrt) / (2 * d_squared);
+	float t2 = (-2 * dot(o, d) - discriminant_sqrt) / (2 * d_squared);
+	float t1_distance = (t1*d).norm();
+	float t2_distance = (t2*d).norm();
+
+	// check if within ray dist bounds
+	auto within_bounds = [&](float t) {
+		return t >= ray.dist_bounds[0] && t <= ray.dist_bounds[1];
+	};
+
+	float t_ret_distance = 0;
+	if(within_bounds(t1_distance) && within_bounds(t2_distance)) {
+		t_ret_distance = std::min(t1_distance, t2_distance);
+	} else if(within_bounds(t1_distance)) {
+		t_ret_distance = t1_distance;
+	} else if(within_bounds(t2_distance)) {
+		t_ret_distance = t2_distance;
+	} else {
+		return ret;
+	}
+	
+
+	// return ret
+	ret.hit = true;
+	ret.distance = t_ret_distance;
+	ret.position = ray.point + t_ret_distance * ray.dir; 
+	ret.normal = ret.position.unit();
+	ret.uv = uv(ret.normal);
+
+	return ret;
 }
 
 Vec3 Sphere::sample(RNG &rng, Vec3 from) const {

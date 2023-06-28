@@ -3,6 +3,7 @@
 
 #include "samplers.h"
 #include "tri_mesh.h"
+#include "../util/helper.h"
 
 namespace PT {
 
@@ -16,6 +17,26 @@ BBox Triangle::bbox() const {
     // account for that here, or later on in BBox::hit.
 
     BBox box;
+
+	float min_x = std::min(vertex_list[v0].position.x, std::min(vertex_list[v1].position.x, vertex_list[v2].position.x));
+	float min_y = std::min(vertex_list[v0].position.y, std::min(vertex_list[v1].position.y, vertex_list[v2].position.y));
+	float min_z = std::min(vertex_list[v0].position.z, std::min(vertex_list[v1].position.z, vertex_list[v2].position.z));
+	float max_x = std::max(vertex_list[v0].position.x, std::max(vertex_list[v1].position.x, vertex_list[v2].position.x));
+	float max_y = std::max(vertex_list[v0].position.y, std::max(vertex_list[v1].position.y, vertex_list[v2].position.y));
+	float max_z = std::max(vertex_list[v0].position.z, std::max(vertex_list[v1].position.z, vertex_list[v2].position.z));
+	if(min_x == max_x) {
+		min_x -= 0.0001f;
+		max_x += 0.0001f;
+	}
+	if(min_y == max_y) {
+		min_y -= 0.0001f;
+		max_y += 0.0001f;
+	}
+	if(min_z == max_z) {
+		min_z -= 0.0001f;
+		max_z += 0.0001f;
+	}
+
     return box;
 }
 
@@ -30,6 +51,11 @@ Trace Triangle::hit(const Ray& ray) const {
     (void)v_1;
     (void)v_2;
 
+	Vec3 s = ray.point - v_0.position;
+	Vec3 e1 = v_1.position - v_0.position;
+	Vec3 e2 = v_2.position - v_0.position;
+	Vec3 dir = ray.dir;
+
     // TODO (PathTracer): Task 2
     // Intersect the ray with the triangle defined by the three vertices.
 
@@ -42,6 +68,35 @@ Trace Triangle::hit(const Ray& ray) const {
                            // (this should be interpolated between the three vertex normals)
 	ret.uv = Vec2{};	   // What was the uv associated with the point of intersection?
 						   // (this should be interpolated between the three vertex uvs)
+
+	// perform ray-triangle intersection test
+	float denom_e1_d_d2 = dot(cross(e1, dir), e2);
+	if (denom_e1_d_d2 == 0) { // ray is parallel to triangle
+		return ret;
+	}
+	Vec3 cramer_rule = Vec3(-1*dot(cross(s, e2), dir),
+							dot(cross(e1, dir), s),
+							-dot(cross(s, e2), e1));
+	Vec3 u_v_t = cramer_rule / denom_e1_d_d2; 
+	float u = u_v_t.x;
+	float v = u_v_t.y;
+	float t = u_v_t.z;
+	if (u < 0 || v < 0 || u + v > 1 || t < 0) { // intersection is outside triangle
+		return ret;
+	}
+	// check the distance of the intersection
+	Vec3 dist = ray.dir * t;
+	float distance = dist.norm();
+	if (distance > ray.dist_bounds.y || distance < ray.dist_bounds.x) {
+		return ret;
+	}
+	// hit confirmed
+	ret.hit = true;
+	ret.distance = distance;
+	ret.position = ray.point + dist;
+	ret.normal = (1 - u - v) * v_0.normal + u * v_1.normal + v * v_2.normal;
+	ret.uv = (1 - u - v) * v_0.uv + u * v_1.uv + v * v_2.uv;
+
     return ret;
 }
 
