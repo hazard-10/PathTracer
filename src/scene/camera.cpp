@@ -27,13 +27,15 @@ std::pair<Ray, float> Camera::sample_ray(RNG &rng, uint32_t px, uint32_t py) {
 
 	//TODO: Transform from sensor pixels into world position on the sensor plane
 	// calculate the (0,0) pos through fov
-	float h = 2.0f * std::tan(Radians(vertical_fov) / 2.0f);
+	float h = 2.0f * std::tan(Radians(vertical_fov / 2.0f)  );
 	float w = aspect_ratio * h;
 	// calculate the (0,0) pos through aspect ratio
 	float w_start = -0.5f * w;
 	float h_start = -0.5f * h;
 
-	Vec3 sensor_pixel_world_pos = Vec3(px / film.width * w + w_start, py / film.height * h + h_start, -1.0f);
+	Vec3 sensor_pixel_world_pos = Vec3(sensor_pixel.x / film.width * w + w_start, 
+									   sensor_pixel.y / film.height * h + h_start, 
+									   -1.0f);
 
 	//Build ray:
 	Ray ray;
