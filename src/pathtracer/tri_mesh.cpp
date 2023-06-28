@@ -17,6 +17,7 @@ BBox Triangle::bbox() const {
     // account for that here, or later on in BBox::hit.
 
     BBox box;
+	float eps = 0.00001f;
 
 	float min_x = std::min(vertex_list[v0].position.x, std::min(vertex_list[v1].position.x, vertex_list[v2].position.x));
 	float min_y = std::min(vertex_list[v0].position.y, std::min(vertex_list[v1].position.y, vertex_list[v2].position.y));
@@ -25,17 +26,19 @@ BBox Triangle::bbox() const {
 	float max_y = std::max(vertex_list[v0].position.y, std::max(vertex_list[v1].position.y, vertex_list[v2].position.y));
 	float max_z = std::max(vertex_list[v0].position.z, std::max(vertex_list[v1].position.z, vertex_list[v2].position.z));
 	if(min_x == max_x) {
-		min_x -= 0.0001f;
-		max_x += 0.0001f;
+		min_x -= eps;
+		max_x += eps;
 	}
 	if(min_y == max_y) {
-		min_y -= 0.0001f;
-		max_y += 0.0001f;
+		min_y -= eps;
+		max_y += eps;
 	}
 	if(min_z == max_z) {
-		min_z -= 0.0001f;
-		max_z += 0.0001f;
+		min_z -= eps;
+		max_z += eps;
 	}
+	box.enclose(Vec3(min_x, min_y, min_z));
+	box.enclose(Vec3(max_x, max_y, max_z));
 
     return box;
 }
@@ -96,6 +99,13 @@ Trace Triangle::hit(const Ray& ray) const {
 	ret.position = ray.point + dist;
 	ret.normal = (1 - u - v) * v_0.normal + u * v_1.normal + v * v_2.normal;
 	ret.uv = (1 - u - v) * v_0.uv + u * v_1.uv + v * v_2.uv;
+
+	/*
+	One important detail of the ray structure is the dist_bounds field. When finding intersections with aggregates of many primitives, you will want to update the ray's dist_bounds value after finding each hit with scene geometry (possibly by using a local copy of the ray given they are often const & parameters). By bounding the ray as tightly as possible, your ray tracer will be able to avoid unnecessary tests with scene geometry that is known to not be able to result in a closest hit, resulting in higher performance. You may ignore this for now, but this will be important in later tasks.
+	*/
+	// local copy
+	Ray ray_copy = ray;
+	ray_copy.dist_bounds.y = distance;
 
     return ret;
 }

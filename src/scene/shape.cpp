@@ -80,6 +80,9 @@ PT::Trace Sphere::hit(Ray ray) const {
 	ret.normal = ret.position.unit();
 	ret.uv = uv(ret.normal);
 
+	Ray ray_copy = ray;
+	ray.dist_bounds.y = t_ret_distance;
+
 	return ret;
 }
 
