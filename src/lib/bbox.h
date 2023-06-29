@@ -80,12 +80,67 @@ struct BBox {
 
 	bool hit(const Ray& ray, Vec2& times) const {
 		//A3T3 - bbox hit
+		/*
+		https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.htmlhttps://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.html
+		*/
 
 		// Implement ray - bounding box intersection test
 		// If the ray intersected the bounding box within the range given by
 		// [times.x,times.y], update times with the new intersection times.
 
-		return false;
+		float t_init_min = times.x;
+		float t_init_max = times.y;
+
+		// rename confusing variables
+		Vec3 box_min = min;
+		Vec3 box_max = max;
+
+		// 1. calculate t values for each plane, each representing intersection with a plane at t timee
+		
+		float t_x_min_coor = (box_min.x - ray.point.x) / ray.dir.x;
+		float t_x_max_coor = (box_max.x - ray.point.x) / ray.dir.x;
+		if(t_x_min_coor > t_x_max_coor) std::swap(t_x_min_coor, t_x_max_coor); // swap if min > max (swap to get min and max
+
+		float t_y_min_coor = (box_min.y - ray.point.y) / ray.dir.y;
+		float t_y_max_coor = (box_max.y - ray.point.y) / ray.dir.y;
+		if (t_y_min_coor > t_y_max_coor) std::swap(t_y_min_coor, t_y_max_coor); // swap if min > max (swap to get min and max
+
+		float t_z_min_coor = (box_min.z - ray.point.z) / ray.dir.z;
+		float t_z_max_coor = (box_max.z - ray.point.z) / ray.dir.z;
+		if (t_z_min_coor > t_z_max_coor) std::swap(t_z_min_coor, t_z_max_coor); // swap if min > max (swap to get min and max
+
+		// 2. pick the min intersection t from intersection with each plane
+		// condition for no intersection
+		if (t_x_min_coor > t_y_max_coor || t_x_max_coor < t_y_min_coor) {
+			return false;
+		}
+
+		float min_intersect = (t_x_min_coor > t_y_min_coor) ? t_x_min_coor : t_y_min_coor;
+		float max_intersect = (t_x_max_coor < t_y_max_coor) ? t_x_max_coor : t_y_max_coor;
+
+		// repeat 2 for z
+
+		if(min_intersect > t_z_max_coor || max_intersect < t_z_min_coor) {
+			return false;
+		}
+
+		min_intersect = (min_intersect > t_z_min_coor) ? min_intersect : t_z_min_coor;
+		max_intersect = (max_intersect < t_z_max_coor) ? max_intersect : t_z_max_coor;
+
+		// 3. update times with new intersection times
+		// condition for no intersection due to dist bounds
+		if (min_intersect > t_init_max || max_intersect < t_init_min) {
+			return false;
+		}
+
+		if (min_intersect > t_init_min) {
+			times.x = min_intersect;
+		}
+		if (max_intersect < t_init_max) {
+			times.y = max_intersect;
+		}
+
+		return true;
 	}
 
 	/// Get the eight corner points of the bounding box
