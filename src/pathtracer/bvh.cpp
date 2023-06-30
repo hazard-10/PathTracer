@@ -61,6 +61,8 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	}else{
 		nodes[root_idx].l = nodes[root_idx].r = 0;
 	}
+	
+	std::cout<<"end of BVH construction"<<std::endl;
 
 	
 }
@@ -178,8 +180,8 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 	nodes.push_back(rightNode);
 	size_t leftNodeIndex = nodes.size() - 2;
 	size_t rightNodeIndex = nodes.size() - 1;
-	parentNode.l = leftNodeIndex;
-	parentNode.r = rightNodeIndex;
+	nodes[parentNodeIndex].l = leftNodeIndex;
+	nodes[parentNodeIndex].r = rightNodeIndex;
 
 	std::cout<<"Constructing nodes, maxleafsize is "<<max_leaf_size<<std::endl;
 
