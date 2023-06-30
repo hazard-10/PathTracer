@@ -48,20 +48,19 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	// 2. Build the BVH recursively
 	// 2.1 Initialize the root node
 	Node rootNode;
+	nodes.push_back(rootNode);
 	rootNode.bbox = sceneBBox;
 	rootNode.start = 0;
 	rootNode.size = primitives.size();
-	nodes.push_back(rootNode);
 
-	buildRecursive(primitives, nodes[0], numBinsPerDim, max_leaf_size);
+	buildRecursive(nodes[0], numBinsPerDim, max_leaf_size);
 }
 
 
 	// helper function to build the BVH recursively
 
 template<typename Primitive>
-void BVH<Primitive>::buildRecursive(std::vector<Primitive>& prims, 
-									Node& parentNode, uint32_t numBinsPerDim, size_t max_leaf_size ) { 
+void BVH<Primitive>::buildRecursive(Node& parentNode, uint32_t numBinsPerDim, size_t max_leaf_size ) { 
 		// parentNode is not a leaf
 
 		// given the primitives from one of the previous partitions
@@ -82,8 +81,8 @@ void BVH<Primitive>::buildRecursive(std::vector<Primitive>& prims,
 			float binLength = (binSpanMax - binSpanMin) / numBinsPerDim;
 
 			// assign primitives to bins, compute the bin bbox
-			for(uint32_t p_index = 0; p_index < prims.size(); p_index++){
-				BBox currPrimBox = prims[p_index].bbox();
+			for(uint32_t p_index = 0; p_index < primitives.size(); p_index++){
+				BBox currPrimBox = primitives[p_index].bbox();
 				float pCoord = currPrimBox.min[axis];
 				uint32_t binIndex = uint32_t(std::floor((pCoord - binSpanMin) / binLength));
 				bins[binIndex].bin_prims.push_back(p_index);
@@ -142,13 +141,13 @@ void BVH<Primitive>::buildRecursive(std::vector<Primitive>& prims,
 		parentNode.r = nodes.size() - 2;
 
 		if(bestLeftBin.bin_prims.size() > max_leaf_size){
-			buildRecursive(prims, leftNode, numBinsPerDim, max_leaf_size);
+			buildRecursive(leftNode, numBinsPerDim, max_leaf_size);
 		}else{
 			leftNode.l = leftNode.r ;
 		}
 
 		if(bestRightBin.bin_prims.size() > max_leaf_size){
-			buildRecursive(prims, rightNode, numBinsPerDim, max_leaf_size);
+			buildRecursive(rightNode, numBinsPerDim, max_leaf_size);
 		}else{
 			rightNode.l = rightNode.r ;
 		}
