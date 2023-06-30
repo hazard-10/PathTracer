@@ -17,7 +17,7 @@ BBox Triangle::bbox() const {
     // account for that here, or later on in BBox::hit.
 
     BBox box;
-	float eps = 0.00001f;
+	float eps = 0.0001f;
 
 	float min_x = std::min(vertex_list[v0].position.x, std::min(vertex_list[v1].position.x, vertex_list[v2].position.x));
 	float min_y = std::min(vertex_list[v0].position.y, std::min(vertex_list[v1].position.y, vertex_list[v2].position.y));
