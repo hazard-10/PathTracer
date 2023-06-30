@@ -47,13 +47,16 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 		// TODO: prims can be empty, need to handle this case
 
 		// given the primitives from one of the previous partitions
+
 		float lowerestCost = INFINITY;
-		uint32_t bestAxis_ = 0;
+		uint32_t bestAxis = 0;
 		uint32_t bestSplit = 0;
 		customBinData bestLeftBin;
 		customBinData bestRightBin;
 		std::vector<uint32_t> prims = parentBinData.bin_prims;
+		
 		// initialize bin data, need the range of the primitives
+		
 		for(uint32_t axis = 0; axis < 3; axis++){
 			// x,y,z
 			std::vector<customBinData> bins(numBinsPerDim);
@@ -73,6 +76,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 
 			// compute the cost of each bin, record the best split
 			for(uint32_t split = 1; split<numBinsPerDim; split++){
+				break;
 				customBinData leftBBox;
 				customBinData rightBBox;
 				uint32_t leftNumPrims = 0;
@@ -83,26 +87,20 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 					leftBBox.totalSurfaceArea += bins[i].bin_bbox.surface_area();
 				}
 				for(uint32_t i = split; i < numBinsPerDim; i++){
-					rightNumPrims += uint32_t([i].bin_prims.size());
+					rightNumPrims += uint32_t(bins[i].bin_prims.size());
 					rightBBox.bin_bbox.enclose(bins[i].bin_bbox);
 					rightBBox.totalSurfaceArea += bins[i].bin_bbox.surface_area();
 				}
-				float cost = leftBBox.totalSurfaceArea  * leftNumPrims + 
-							 rightBBox.totalSurfaceArea * rightNumPrims;
+				float cost = leftBBox.totalSurfaceArea  * leftNumPrims + rightBBox.totalSurfaceArea * rightNumPrims;
 				if(cost < lowerestCost){ // cost will be non-zero
 					lowerestCost = cost;
-					bestAxis_ = axis;
+					bestAxis = axis;
 					bestSplit = split;
 					bestLeftBin = leftBBox;
 					bestRightBin = rightBBox;
 				}
 			}
-
-
-
-			
 		}
-		
 	};
 
 	// 1. Compute the bounding box of all primitives in the scene and for self
