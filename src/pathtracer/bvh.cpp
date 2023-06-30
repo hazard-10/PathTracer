@@ -21,18 +21,98 @@ struct SAHBucketData {
 	size_t num_prims; ///< number of primitives in the bucket
 };
 
+struct customBinData{
+	BBox bin_bbox;
+	std::vector<uint32_t> bin_prims; // stores the indices of the primitives in the bin
+	float totalSurfaceArea;
+};
+
 template<typename Primitive>
 void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size) {
 	//A3T3 - build a bvh
+    // Construct a BVH from the given vector of primitives and maximum leaf
+    // size configuration.
 
 	// Keep these
     nodes.clear();
     primitives = std::move(prims);
+	
+	size_t numBinsPerDim = 8;
+	BBox sceneBBox;
+	std::unordered_map<uint32_t, BBox> primBBoxes;
 
-    // Construct a BVH from the given vector of primitives and maximum leaf
-    // size configuration.
 
-	//TODO
+	// helper function to build the BVH recursively
+	auto buildRecursive = [&](customBinData parentBinData) { 
+		// TODO: prims can be empty, need to handle this case
+
+		// given the primitives from one of the previous partitions
+		float lowerestCost = INFINITY;
+		uint32_t bestAxis_ = 0;
+		uint32_t bestSplit = 0;
+		customBinData bestLeftBin;
+		customBinData bestRightBin;
+		std::vector<uint32_t> prims = parentBinData.bin_prims;
+		// initialize bin data, need the range of the primitives
+		for(uint32_t axis = 0; axis < 3; axis++){
+			// x,y,z
+			std::vector<customBinData> bins(numBinsPerDim);
+			// compute the bin span
+			float binSpanMin = parentBinData.bin_bbox.min[axis];
+			float binSpanMax = parentBinData.bin_bbox.max[axis];
+			float binLength = (binSpanMax - binSpanMin) / numBinsPerDim;
+
+			// assign primitives to bins, compute the bin bbox
+			for(uint32_t p_index : prims){
+				BBox currPrimBox = primBBoxes[p_index];
+				float pCoord = currPrimBox.min[axis];
+				uint32_t binIndex = uint32_t(std::floor((pCoord - binSpanMin) / binLength));
+				bins[binIndex].bin_prims.push_back(p_index);
+				bins[binIndex].bin_bbox.enclose(primBBoxes[p_index]);
+			}
+
+			// compute the cost of each bin, record the best split
+			for(uint32_t split = 1; split<numBinsPerDim; split++){
+				customBinData leftBBox;
+				customBinData rightBBox;
+				uint32_t leftNumPrims = 0;
+				uint32_t rightNumPrims = 0;
+				for(uint32_t i = 0; i < split; i++){
+					leftNumPrims += uint32_t(bins[i].bin_prims.size());
+					leftBBox.bin_bbox.enclose(bins[i].bin_bbox);
+					leftBBox.totalSurfaceArea += bins[i].bin_bbox.surface_area();
+				}
+				for(uint32_t i = split; i < numBinsPerDim; i++){
+					rightNumPrims += uint32_t([i].bin_prims.size());
+					rightBBox.bin_bbox.enclose(bins[i].bin_bbox);
+					rightBBox.totalSurfaceArea += bins[i].bin_bbox.surface_area();
+				}
+				float cost = leftBBox.totalSurfaceArea  * leftNumPrims + 
+							 rightBBox.totalSurfaceArea * rightNumPrims;
+				if(cost < lowerestCost){ // cost will be non-zero
+					lowerestCost = cost;
+					bestAxis_ = axis;
+					bestSplit = split;
+					bestLeftBin = leftBBox;
+					bestRightBin = rightBBox;
+				}
+			}
+
+
+
+			
+		}
+		
+	};
+
+	// 1. Compute the bounding box of all primitives in the scene and for self
+	for (uint32_t i = 0; i < primitives.size(); i++) {
+		BBox primBBox = prims[i].bbox();
+		primBBoxes[i] = primBBox;
+		sceneBBox.enclose(primBBox);
+	}
+
+	
 
 }
 
