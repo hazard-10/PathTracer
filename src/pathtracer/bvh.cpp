@@ -37,7 +37,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     nodes.clear();
     primitives = std::move(prims);
 	
-	// uint32_t numBinsPerDim = 8;
+	uint32_t numBinsPerDim = 8;
 	BBox sceneBBox;
 	std::unordered_map<uint32_t, BBox> primBBoxes;
 
@@ -47,17 +47,30 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 		primBBoxes[i] = primBBox;
 		sceneBBox.enclose(primBBox);
 	}
+
+	// 2. Build the BVH recursively
+	// 2.1 Initialize the root node
+	Node rootNode;
+	rootNode.bbox = sceneBBox;
+	rootNode.start = 0;
+	rootNode.size = primitives.size();
+	nodes.push_back(rootNode);
+
+	buildRecursive(std::vector<uint32_t>(primitives.size()), 
+					nodes[0], numBinsPerDim, primBBoxes, max_leaf_size);
 }
 
 
 	// helper function to build the BVH recursively
 
 template<typename Primitive>
-void BVH<Primitive>::buildRecursive(BBox parentBBox, std::vector<uint32_t> parentPrims ,Node& parentNode, uint32_t numBinsPerDim, std::unordered_map<uint32_t, BBox> primBBoxes) { 
+void BVH<Primitive>::buildRecursive(std::vector<uint32_t> parentPrims, 
+									Node& parentNode, uint32_t numBinsPerDim, 
+									std::unordered_map<uint32_t, BBox> primBBoxes, size_t max_leaf_size ) { 
 		// parentNode is not a leaf
 
 		// given the primitives from one of the previous partitions
-
+		BBox parentBBox = parentNode.bbox;
 		float lowerestCost = INFINITY;
 		uint32_t bestAxis = 0;
 		uint32_t bestSplit = 0;
@@ -66,7 +79,6 @@ void BVH<Primitive>::buildRecursive(BBox parentBBox, std::vector<uint32_t> paren
 		std::vector<uint32_t> prims = parentPrims;
 		
 		// initialize bin data, need the range of the primitives
-		
 		for(uint32_t axis = 0; axis < 3; axis++){
 			// x,y,z
 			std::vector<customBinData> bins(numBinsPerDim);
@@ -120,33 +132,35 @@ void BVH<Primitive>::buildRecursive(BBox parentBBox, std::vector<uint32_t> paren
 		3. left or right can't be zero, 
 		*/
 
-		// Node leftNode;
-		// leftNode.bbox = bestLeftBin.bin_bbox;
-		// leftNode.start = bestLeftBin.bin_prims[0];
-		// leftNode.size = bestLeftBin.bin_prims.size();
+		Node leftNode;
+		leftNode.bbox = bestLeftBin.bin_bbox;
+		leftNode.start = bestLeftBin.bin_prims[0];
+		leftNode.size = bestLeftBin.bin_prims.size();
 		
-		// Node rightNode;
-		// rightNode.bbox = bestRightBin.bin_bbox;
-		// rightNode.start = bestRightBin.bin_prims[0];
-		// rightNode.size = bestRightBin.bin_prims.size();
+		Node rightNode;
+		rightNode.bbox = bestRightBin.bin_bbox;
+		rightNode.start = bestRightBin.bin_prims[0];
+		rightNode.size = bestRightBin.bin_prims.size();
 		
-		// nodes.push_back(leftNode);
-		// nodes.push_back(rightNode);
-		// parentNode.l = nodes.size() - 1;
-		// parentNode.r = nodes.size() - 2;
+		nodes.push_back(leftNode);
+		nodes.push_back(rightNode);
+		parentNode.l = nodes.size() - 1;
+		parentNode.r = nodes.size() - 2;
 
+		std::vector<uint32_t> leftPrims;
+		std::vector<uint32_t> rightPrims;
 
-		// if(bestLeftBin.bin_prims.size() > max_leaf_size){
-		// 	buildRecursive(bestLeftBin, leftNode);
-		// }else{
-		// 	leftNode.l = leftNode.r ;
-		// }
+		if(bestLeftBin.bin_prims.size() > max_leaf_size){
+			buildRecursive(leftPrims, leftNode, numBinsPerDim, primBBoxes, max_leaf_size);
+		}else{
+			leftNode.l = leftNode.r ;
+		}
 
-		// if(bestRightBin.bin_prims.size() > max_leaf_size){
-		// 	buildRecursive(bestRightBin, rightNode);
-		// }else{
-		// 	rightNode.l = rightNode.r ;
-		// }
+		if(bestRightBin.bin_prims.size() > max_leaf_size){
+			buildRecursive(leftPrims, leftNode, numBinsPerDim, primBBoxes, max_leaf_size);
+		}else{
+			rightNode.l = rightNode.r ;
+		}
 
 	};
 
