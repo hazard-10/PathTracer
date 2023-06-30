@@ -51,8 +51,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	nodes.push_back(rootNode);
 	nodes[root_idx].bbox = sceneBBox;
 	nodes[root_idx].start = 0;
-	nodes[root_idx].size = primitives.size();
-	std::cout<<" nodes[0] size " << nodes[0].size <<std::endl;
+	nodes[root_idx].size = primitives.size(); 
 
 	
 	uint32_t numBinsPerDim = 8;
@@ -61,8 +60,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	}else{
 		nodes[root_idx].l = nodes[root_idx].r = 0;
 	}
-	
-	std::cout<<"end of BVH construction"<<std::endl;
+	 
 
 	
 }
@@ -72,8 +70,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 
 template<typename Primitive>
 void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerDim, size_t max_leaf_size ) { 
-	Node& parentNode = nodes[parentNodeIndex];
-	std::cout<<" start buildRecursive " << parentNode.start <<" - "<< parentNode.size<<std::endl;
+	Node& parentNode = nodes[parentNodeIndex]; 
 	// parentNode is not a leaf
 
 	// given the primitives from one of the previous partitions
@@ -87,15 +84,12 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 	// initialize bin data, need the range of the primitives
 	for(uint32_t axis = 0; axis < 3; axis++){
 		
-		std::cout<<"Initialization Axis= "<<axis<<std::endl;
 		// x,y,z
 		std::vector<customBinData> bins(numBinsPerDim);
 		// compute the bin span
 		float binSpanMin = parentBBox.min[axis];
 		float binSpanMax = parentBBox.max[axis];
 		float binLength = (binSpanMax - binSpanMin) / numBinsPerDim;
-		
-		std::cout<<" binSpanMin " << binSpanMin <<" binSpanMax "<< binSpanMax << " binLength "<<binLength<<std::endl;
 		// assign primitives to bins, compute the bin bbox
 		for(size_t p_index = parentNode.start; p_index < parentNode.start + parentNode.size; p_index++){
 			BBox currPrimBox = primitives[p_index].bbox();
@@ -104,12 +98,10 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 			bins[binIndex].bin_prims.push_back(uint32_t(p_index));
 			bins[binIndex].bin_bbox.enclose(currPrimBox);
 			bins[binIndex].totalSurfaceArea += currPrimBox.surface_area();
-		}
-		std::cout<<"Computing cost of each bin: "<<std::endl;
+		} 
 
 		// compute the cost of each bin, record the best split
-		for(uint32_t split = 1; split<numBinsPerDim; split++){
-			std::cout<<"\tsplit index is "<<split<<std::endl;
+		for(uint32_t split = 1; split<numBinsPerDim; split++){ 
 			customBinData leftBBox;
 			customBinData rightBBox;
 			uint32_t leftNumPrims = 0;
@@ -131,11 +123,7 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 				if(bins[i].bin_bbox.surface_area() > 0)	rightAvgBinCost += bins[i].totalSurfaceArea / bins[i].bin_bbox.surface_area();
 			}
 			float cost = leftBBox.bin_bbox.surface_area() * leftNumPrims + rightBBox.bin_bbox.surface_area() * rightNumPrims;
-			// cost /= parentBBox.surface_area();
-			std::cout<<"\t\tcost "<<cost<<std::endl;
-			std::cout<<"\t\tleftNum "<<leftNumPrims<<std::endl;
-			std::cout<<"\t\trightNum "<<rightNumPrims<<std::endl;
-			std::cout<<"\t\tlowerestCost "<<lowerestCost<<std::endl;
+
 			if(cost < lowerestCost){ // cost will be non-zero
 				lowerestCost = cost;
 				bestAxis = axis;
@@ -145,11 +133,7 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 			}
 		}
 	}
-	std::cout<<"bestAxis "<<bestAxis<<std::endl;
-	std::cout<<"bestSplit "<<bestSplit<<std::endl;
-	std::cout<<"bestLeftBin "<<bestLeftBin.bin_prims.size()<<std::endl;
-	std::cout<<"bestRightBin "<<bestRightBin.bin_prims.size()<<std::endl;
-	std::cout<<"lowerestCost "<<lowerestCost<<std::endl;
+	
 	// partition the primitives into left and right
 	auto isPrimLeft = [&](Primitive& p){
 		Vec3 pCenter = p.bbox().center();
@@ -183,26 +167,18 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 	nodes[parentNodeIndex].l = leftNodeIndex;
 	nodes[parentNodeIndex].r = rightNodeIndex;
 
-	std::cout<<"Constructing nodes, maxleafsize is "<<max_leaf_size<<std::endl;
-
 	if(bestLeftBin.bin_prims.size() > max_leaf_size){
-		
-		std::cout<<"left recur"<<std::endl;
 		buildRecursive(leftNodeIndex, numBinsPerDim, max_leaf_size);
 	}else{
-		std::cout<<"left leaf"<<std::endl;
 		nodes[leftNodeIndex].l = nodes[leftNodeIndex].r = nodes[leftNodeIndex].start ;
 	}
 
 	if(bestRightBin.bin_prims.size() > max_leaf_size){
 		
-		std::cout<<"right recur"<<std::endl;
 		buildRecursive(rightNodeIndex, numBinsPerDim, max_leaf_size); 
 	}else{
-		std::cout<<"right leaf"<<std::endl;
 		nodes[rightNodeIndex].l = nodes[rightNodeIndex].r  = nodes[rightNodeIndex].start;
 	}
-	std::cout<<"end of recursion"<<std::endl;
 
 };
 
