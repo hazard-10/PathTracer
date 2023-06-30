@@ -37,14 +37,24 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     nodes.clear();
     primitives = std::move(prims);
 	
-	size_t numBinsPerDim = 8;
+	// uint32_t numBinsPerDim = 8;
 	BBox sceneBBox;
 	std::unordered_map<uint32_t, BBox> primBBoxes;
 
+	// 1. Compute the bounding box of all primitives in the scene and for self
+	for (uint32_t i = 0; i < primitives.size(); i++) {
+		BBox primBBox = prims[i].bbox();
+		primBBoxes[i] = primBBox;
+		sceneBBox.enclose(primBBox);
+	}
+}
+
 
 	// helper function to build the BVH recursively
-	auto buildRecursive = [&](customBinData parentBinData) { 
-		// TODO: prims can be empty, need to handle this case
+
+template<typename Primitive>
+void BVH<Primitive>::buildRecursive(BBox parentBBox, std::vector<uint32_t> parentPrims ,Node& parentNode, uint32_t numBinsPerDim, std::unordered_map<uint32_t, BBox> primBBoxes) { 
+		// parentNode is not a leaf
 
 		// given the primitives from one of the previous partitions
 
@@ -53,7 +63,7 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 		uint32_t bestSplit = 0;
 		customBinData bestLeftBin;
 		customBinData bestRightBin;
-		std::vector<uint32_t> prims = parentBinData.bin_prims;
+		std::vector<uint32_t> prims = parentPrims;
 		
 		// initialize bin data, need the range of the primitives
 		
@@ -61,8 +71,8 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 			// x,y,z
 			std::vector<customBinData> bins(numBinsPerDim);
 			// compute the bin span
-			float binSpanMin = parentBinData.bin_bbox.min[axis];
-			float binSpanMax = parentBinData.bin_bbox.max[axis];
+			float binSpanMin = parentBBox.min[axis];
+			float binSpanMax = parentBBox.max[axis];
 			float binLength = (binSpanMax - binSpanMin) / numBinsPerDim;
 
 			// assign primitives to bins, compute the bin bbox
@@ -101,18 +111,45 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 				}
 			}
 		}
+		// reconstruct the left and right primitive indices
+
+
+		/*
+		1. if left or right has more than max_leaf_size, continue recurse on left / right
+		2. if left or right has less than max_leaf_size, make it a leaf node
+		3. left or right can't be zero, 
+		*/
+
+		// Node leftNode;
+		// leftNode.bbox = bestLeftBin.bin_bbox;
+		// leftNode.start = bestLeftBin.bin_prims[0];
+		// leftNode.size = bestLeftBin.bin_prims.size();
+		
+		// Node rightNode;
+		// rightNode.bbox = bestRightBin.bin_bbox;
+		// rightNode.start = bestRightBin.bin_prims[0];
+		// rightNode.size = bestRightBin.bin_prims.size();
+		
+		// nodes.push_back(leftNode);
+		// nodes.push_back(rightNode);
+		// parentNode.l = nodes.size() - 1;
+		// parentNode.r = nodes.size() - 2;
+
+
+		// if(bestLeftBin.bin_prims.size() > max_leaf_size){
+		// 	buildRecursive(bestLeftBin, leftNode);
+		// }else{
+		// 	leftNode.l = leftNode.r ;
+		// }
+
+		// if(bestRightBin.bin_prims.size() > max_leaf_size){
+		// 	buildRecursive(bestRightBin, rightNode);
+		// }else{
+		// 	rightNode.l = rightNode.r ;
+		// }
+
 	};
 
-	// 1. Compute the bounding box of all primitives in the scene and for self
-	for (uint32_t i = 0; i < primitives.size(); i++) {
-		BBox primBBox = prims[i].bbox();
-		primBBoxes[i] = primBBox;
-		sceneBBox.enclose(primBBox);
-	}
-
-	
-
-}
 
 template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 	//A3T3 - traverse your BVH
