@@ -39,13 +39,10 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	
 	uint32_t numBinsPerDim = 8;
 	BBox sceneBBox;
-	std::unordered_map<uint32_t, BBox> primBBoxes;
 
 	// 1. Compute the bounding box of all primitives in the scene and for self
 	for (uint32_t i = 0; i < primitives.size(); i++) {
-		BBox primBBox = prims[i].bbox();
-		primBBoxes[i] = primBBox;
-		sceneBBox.enclose(primBBox);
+		sceneBBox.enclose(primitives[i].bbox());
 	}
 
 	// 2. Build the BVH recursively
@@ -56,17 +53,15 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
 	rootNode.size = primitives.size();
 	nodes.push_back(rootNode);
 
-	buildRecursive(std::vector<uint32_t>(primitives.size()), 
-					nodes[0], numBinsPerDim, primBBoxes, max_leaf_size);
+	buildRecursive(primitives, nodes[0], numBinsPerDim, max_leaf_size);
 }
 
 
 	// helper function to build the BVH recursively
 
 template<typename Primitive>
-void BVH<Primitive>::buildRecursive(std::vector<uint32_t> parentPrims, 
-									Node& parentNode, uint32_t numBinsPerDim, 
-									std::unordered_map<uint32_t, BBox> primBBoxes, size_t max_leaf_size ) { 
+void BVH<Primitive>::buildRecursive(std::vector<Primitive>& prims, 
+									Node& parentNode, uint32_t numBinsPerDim, size_t max_leaf_size ) { 
 		// parentNode is not a leaf
 
 		// given the primitives from one of the previous partitions
@@ -76,7 +71,6 @@ void BVH<Primitive>::buildRecursive(std::vector<uint32_t> parentPrims,
 		uint32_t bestSplit = 0;
 		customBinData bestLeftBin;
 		customBinData bestRightBin;
-		std::vector<uint32_t> prims = parentPrims;
 		
 		// initialize bin data, need the range of the primitives
 		for(uint32_t axis = 0; axis < 3; axis++){
@@ -88,12 +82,12 @@ void BVH<Primitive>::buildRecursive(std::vector<uint32_t> parentPrims,
 			float binLength = (binSpanMax - binSpanMin) / numBinsPerDim;
 
 			// assign primitives to bins, compute the bin bbox
-			for(uint32_t p_index : prims){
-				BBox currPrimBox = primBBoxes[p_index];
+			for(uint32_t p_index = 0; p_index < prims.size(); p_index++){
+				BBox currPrimBox = prims[p_index].bbox();
 				float pCoord = currPrimBox.min[axis];
 				uint32_t binIndex = uint32_t(std::floor((pCoord - binSpanMin) / binLength));
 				bins[binIndex].bin_prims.push_back(p_index);
-				bins[binIndex].bin_bbox.enclose(primBBoxes[p_index]);
+				bins[binIndex].bin_bbox.enclose(currPrimBox);
 			}
 
 			// compute the cost of each bin, record the best split
@@ -147,17 +141,14 @@ void BVH<Primitive>::buildRecursive(std::vector<uint32_t> parentPrims,
 		parentNode.l = nodes.size() - 1;
 		parentNode.r = nodes.size() - 2;
 
-		std::vector<uint32_t> leftPrims;
-		std::vector<uint32_t> rightPrims;
-
 		if(bestLeftBin.bin_prims.size() > max_leaf_size){
-			buildRecursive(leftPrims, leftNode, numBinsPerDim, primBBoxes, max_leaf_size);
+			buildRecursive(prims, leftNode, numBinsPerDim, max_leaf_size);
 		}else{
 			leftNode.l = leftNode.r ;
 		}
 
 		if(bestRightBin.bin_prims.size() > max_leaf_size){
-			buildRecursive(leftPrims, leftNode, numBinsPerDim, primBBoxes, max_leaf_size);
+			buildRecursive(prims, rightNode, numBinsPerDim, max_leaf_size);
 		}else{
 			rightNode.l = rightNode.r ;
 		}

@@ -25,7 +25,7 @@ public:
 	BVH() = default;
 	BVH(std::vector<Primitive>&& primitives, size_t max_leaf_size = 1);
 	void build(std::vector<Primitive>&& primitives, size_t max_leaf_size = 1);
-	void buildRecursive(std::vector<uint32_t> parentPrims ,Node& parentNode, uint32_t numBinsPerDim, std::unordered_map<uint32_t, BBox> primBBoxes, size_t max_leaf_size);
+	void buildRecursive(std::vector<Primitive>& prims ,Node& parentNode, uint32_t numBinsPerDim, size_t max_leaf_size);
 
 	BVH(BVH&& src) = default;
 	BVH& operator=(BVH&& src) = default;
