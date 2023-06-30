@@ -81,7 +81,7 @@ struct BBox {
 	bool hit(const Ray& ray, Vec2& times) const {
 		//A3T3 - bbox hit
 		/*
-		https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.htmlhttps://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.html
+		https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection.html
 		*/
 
 		// Implement ray - bounding box intersection test
