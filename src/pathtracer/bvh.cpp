@@ -224,22 +224,6 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 }
 template<typename Primitive>
 void BVH<Primitive>::hitRecursive(const Ray& ray, size_t nodeIndex, Trace& curMinTrace) const {
-	auto rayBBoxHit = [&](const Ray& ray, const BBox& locaBBox){
-		Vec2 localDistBounds(0.f, INFINITY);
-		bool ifHit = locaBBox.hit(ray, localDistBounds);
-		float firstIntersectionTime = localDistBounds[0];
-		float firstInteractionDistance = ray.dir.norm() * firstIntersectionTime;
-		return Vec2(float(ifHit), firstInteractionDistance);
-	};
-
-	auto validHit = [&]( const Ray& ray, const BBox& locaBBox_){
-		Vec2 distBound = rayBBoxHit(ray, locaBBox_);
-		return distBound[0] == float(true) && distBound[1] <= curMinTrace.distance;
-	};
-
-	auto quickValidHit = [&](Vec2 distBound){
-		return distBound[0] == float(true) && distBound[1] <= curMinTrace.distance;
-	};
 
 	Node node = nodes[nodeIndex];
 	// check if hit the node's bbox
@@ -261,50 +245,8 @@ void BVH<Primitive>::hitRecursive(const Ray& ray, size_t nodeIndex, Trace& curMi
 		hitRecursive(ray, node.l, curMinTrace);
 		hitRecursive(ray, node.r, curMinTrace);
 	}
+
 	
-	// comment start
-
-
-	// if(node.l == node.r){ // if leaf node, test ray against all primitives in the node
-	// 	for(size_t i = node.start; i < node.start + node.size; i++){
-	// 		Trace hit = primitives[i].hit(ray);
-	// 		curMinTrace = Trace::min(curMinTrace, hit);
-	// 	}
-	// 	return;
-	// }else{
-	// 	// hit both left and right child bbox
-	// 	// Trace leftHit, rightHit;
-	// 	Vec2 leftHitResult = rayBBoxHit(ray, nodes[node.l].bbox);
-	// 	Vec2 rightHitResult = rayBBoxHit(ray, nodes[node.r].bbox);
-	// 	bool leftConfirmHit = quickValidHit(leftHitResult);
-	// 	bool rightConfirmHit = quickValidHit(rightHitResult);
-	// 	// neither hit
-	// 	if(!leftConfirmHit && !rightConfirmHit) return;
-	// 	// one of them hit
-	// 	if(leftConfirmHit && !rightConfirmHit){
-	// 		hitRecursive(ray, node.l, curMinTrace);
-	// 		return;
-	// 	}
-	// 	if(!leftConfirmHit && rightConfirmHit){
-	// 		hitRecursive(ray, node.r, curMinTrace);
-	// 		return;
-	// 	}	
-	// 	// both hit, find the closer one
-	// 	float leftHitTDist = leftHitResult[1];
-	// 	float rightHitTDist = rightHitResult[1];
-	// 	size_t firstHitNodeIndex = leftHitTDist < rightHitTDist ? node.l : node.r;
-	// 	size_t secondHitNodeIndex = leftHitTDist >= rightHitTDist ? node.l : node.r;
-	// 	float secondHitTDist = leftHitTDist >= rightHitTDist ? leftHitTDist : rightHitTDist;
-
-	// 	hitRecursive(ray, firstHitNodeIndex, curMinTrace);
-	// 	if(curMinTrace.distance > secondHitTDist){
-	// 		hitRecursive(ray, secondHitNodeIndex, curMinTrace);
-	// 	}
-	// 	return;
-
-	// }
-	
-	// comment end
 }
 
 template<typename Primitive>
