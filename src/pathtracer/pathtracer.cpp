@@ -25,18 +25,25 @@ Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& 
     // Compute exact amount of light coming from delta lights:
 	//  (these don't need to be sampled)
     Spectrum radiance = sum_delta_lights(hit);
+	Vec2 custom_dist_bounds(1.f, INFINITY);
 
 	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
+	Vec3 sampled_in_dir = hit.bsdf.scatter(rng, hit.out_dir, hit.uv).direction;
+	Spectrum attenuation = hit.bsdf.scatter(rng, hit.out_dir, hit.uv).attenuation;
 
 	//TODO: rotate that direction into world coordinates
+	hit.object_to_world.rotate(sampled_in_dir);
 
 	//TODO: construct a ray travelling in that direction
 	// NOTE: because we want emitted light only, can use depth = 0 for the ray
+	Ray new_in_ray(hit.pos, sampled_in_dir, custom_dist_bounds, 0);
 
 	//TODO: trace() the ray to get the emitted light (first part of the return value)
+	Spectrum radiance_new = trace(rng, new_in_ray).first;
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and add to radiance
-
+	radiance_new *= attenuation / hit.bsdf.pdf(sampled_in_dir, hit.out_dir);
+	radiance += radiance_new;
 	return radiance;
 }
 
@@ -59,6 +66,13 @@ Spectrum Pathtracer::sample_direct_lighting_task6(RNG &rng, const Shading_Info& 
 Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit) {
 	//A3T4: path tracing - indirect lighting
 
+	/*
+	
+	Shading_Info info = {*bsdf,         world_to_object, object_to_world, result.position, out_dir,
+	                     result.normal, result.uv, ray.depth};
+	*/
+	Vec2 custom_dist_bounds(1.f, INFINITY);
+
 	//Compute a single-sample Monte Carlo estimate of the indirect lighting contribution
 	// at a given ray intersection point.
 
@@ -66,16 +80,21 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 
 	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
 
+	Vec3 sampled_in_dir = hit.bsdf.scatter(rng, hit.out_dir, hit.uv).direction;
+	Spectrum attenuation = hit.bsdf.scatter(rng, hit.out_dir, hit.uv).attenuation;
+
 	//TODO: rotate that direction into world coordinates
+	hit.object_to_world.rotate(sampled_in_dir);
 
 	//TODO: construct a ray travelling in that direction
 	// NOTE: be sure to reduce the ray depth! otherwise infinite recursion is possible
+	Ray new_in_ray(hit.pos, sampled_in_dir, custom_dist_bounds, hit.depth - 1);
 
 	//TODO: trace() the ray to get the reflected light (the second part of the return value)
+	Spectrum radiance = trace(rng, new_in_ray).second;
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and set radiance
-
-	Spectrum radiance;
+	radiance *= attenuation / hit.bsdf.pdf(sampled_in_dir, hit.out_dir);
     return radiance;
 }
 
