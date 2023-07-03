@@ -50,7 +50,7 @@ Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& 
 	Vec3 in_dir_local = hit.bsdf.scatter(rng, out_dir_local, hit.uv).direction;
 	Vec3 in_dir_world = hit.object_to_world.rotate(in_dir_local);
 
-	Spectrum attenuation = hit.bsdf.evaluate(out_dir_local,in_dir_local, hit.uv);
+	Spectrum attenuation = hit.bsdf.evaluate(in_dir_local,out_dir_local, hit.uv);
 
 	//TODO: rotate that direction into world coordinates
 
@@ -94,7 +94,7 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 	Vec3 in_dir_local = hit.bsdf.scatter(rng, out_dir_local, hit.uv).direction;
 	Vec3 in_dir_world = hit.object_to_world.rotate(in_dir_local);
 
-	Spectrum attenuation = hit.bsdf.evaluate(out_dir_local,in_dir_local, hit.uv);
+	Spectrum attenuation = hit.bsdf.evaluate(in_dir_local,out_dir_local, hit.uv);
 
 	//TODO: rotate that direction into world coordinates
 
@@ -162,7 +162,6 @@ std::pair<Spectrum, Spectrum> Pathtracer::trace(RNG &rng, const Ray& ray) {
 
 	return {emissive, direct + sample_indirect_lighting(rng, info)};
 }
-
 Pathtracer::Pathtracer() : thread_pool(std::thread::hardware_concurrency()) {
 }
 

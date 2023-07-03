@@ -43,7 +43,9 @@ Spectrum Lambertian::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
     // Compute the ratio of reflected/incoming radiance when light from in_dir
     // is reflected through out_dir: albedo / PI_F * cos(theta).
 
-	float cosTheta = std::max(0.0f, dot(in, Vec3{0,1,0}));
+	// float cosTheta = std::max(0.0f, dot(in.unit(), Vec3{0,1,0}));
+	float cosTheta = std::max(0.0f, in.y);
+	//  float cosTheta = std::max(0.0f, dot(in, out));
 	Spectrum alebedoIncomToOutgo = albedo.lock()->evaluate(uv);
 	return alebedoIncomToOutgo / PI_F * cosTheta;
 }
