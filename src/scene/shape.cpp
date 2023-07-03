@@ -1,6 +1,6 @@
 
 #include "shape.h"
-#include "../geometry/util.h"
+#include "../geometry/util.h" 
 
 namespace Shapes {
 
@@ -53,8 +53,6 @@ PT::Trace Sphere::hit(Ray ray) const {
 
 	float t1 = (-2 * dot(o, d) + discriminant_sqrt) / (2 * d_squared);
 	float t2 = (-2 * dot(o, d) - discriminant_sqrt) / (2 * d_squared);
-	float t1_distance = (t1*d).norm();
-	float t2_distance = (t2*d).norm();
 
 	// check if within ray dist bounds
 	auto within_bounds = [&](float t) {
@@ -62,12 +60,12 @@ PT::Trace Sphere::hit(Ray ray) const {
 	};
 
 	float t_ret_distance = 0;
-	if(within_bounds(t1_distance) && within_bounds(t2_distance)) {
-		t_ret_distance = std::min(t1_distance, t2_distance);
-	} else if(within_bounds(t1_distance)) {
-		t_ret_distance = t1_distance;
-	} else if(within_bounds(t2_distance)) {
-		t_ret_distance = t2_distance;
+	if(within_bounds(t1) && within_bounds(t2)) {
+		t_ret_distance = std::min(t1, t2);
+	} else if(within_bounds(t1)) {
+		t_ret_distance = t1;
+	} else if(within_bounds(t2)) {
+		t_ret_distance = t2;
 	} else {
 		return ret;
 	}
