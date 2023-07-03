@@ -95,6 +95,16 @@ struct BBox {
 		Vec3 box_min = min;
 		Vec3 box_max = max;
 
+		if(ray.dir.x == 0 && (ray.point.x < box_min.x || ray.point.x > box_max.x)) {
+			return false;
+		}
+		if (ray.dir.y == 0 && (ray.point.y < box_min.y || ray.point.y > box_max.y)) {
+			return false;
+		}
+		if (ray.dir.z == 0 && (ray.point.z < box_min.z || ray.point.z > box_max.z)) {
+			return false;
+		}
+
 		// 1. calculate t values for each plane, each representing intersection with a plane at t timee
 		
 		float t_x_min_coor = (box_min.x - ray.point.x) / ray.dir.x;

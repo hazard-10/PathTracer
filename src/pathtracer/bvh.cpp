@@ -116,36 +116,75 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 
 		// compute the cost of each bin, record the best split
 		for(uint32_t split = 1; split<numBinsPerDim; split++){ 
-			customBinData leftBBox;
-			customBinData rightBBox;
+			customBinData leftBin;
+			customBinData rightBin;
 			uint32_t leftNumPrims = 0;
 			uint32_t rightNumPrims = 0;
 			float leftAvgBinCost = 0;
 			float rightAvgBinCost = 0;
 			for(uint32_t i = 0; i < split; i++){
 				leftNumPrims += uint32_t(bins[i].bin_prims.size());
-				leftBBox.bin_bbox.enclose(bins[i].bin_bbox);
-				leftBBox.totalSurfaceArea += bins[i].totalSurfaceArea;
-				leftBBox.bin_prims.insert(leftBBox.bin_prims.end(), bins[i].bin_prims.begin(), bins[i].bin_prims.end());
+				leftBin.bin_bbox.enclose(bins[i].bin_bbox);
+				leftBin.totalSurfaceArea += bins[i].totalSurfaceArea;
+				leftBin.bin_prims.insert(leftBin.bin_prims.end(), bins[i].bin_prims.begin(), bins[i].bin_prims.end());
 				if(bins[i].bin_bbox.surface_area() > 0)	leftAvgBinCost += bins[i].totalSurfaceArea / bins[i].bin_bbox.surface_area();
 			}
 			for(uint32_t i = split; i < numBinsPerDim; i++){
 				rightNumPrims += uint32_t(bins[i].bin_prims.size());
-				rightBBox.bin_bbox.enclose(bins[i].bin_bbox);
-				rightBBox.totalSurfaceArea += bins[i].totalSurfaceArea;
-				rightBBox.bin_prims.insert(rightBBox.bin_prims.end(), bins[i].bin_prims.begin(), bins[i].bin_prims.end());
+				rightBin.bin_bbox.enclose(bins[i].bin_bbox);
+				rightBin.totalSurfaceArea += bins[i].totalSurfaceArea;
+				rightBin.bin_prims.insert(rightBin.bin_prims.end(), bins[i].bin_prims.begin(), bins[i].bin_prims.end());
 				if(bins[i].bin_bbox.surface_area() > 0)	rightAvgBinCost += bins[i].totalSurfaceArea / bins[i].bin_bbox.surface_area();
 			}
-			float cost = leftBBox.bin_bbox.surface_area() * leftNumPrims + rightBBox.bin_bbox.surface_area() * rightNumPrims;
-
-			if(cost < lowerestCost){ // cost will be non-zero
+			float cost = leftBin.bin_bbox.surface_area() * leftNumPrims + rightBin.bin_bbox.surface_area() * rightNumPrims;
+			
+			bool print_to_console = true;
+			if(cost < lowerestCost && leftBin.bin_prims.size() > 0 && rightBin.bin_prims.size()>0){ // cost will be non-zero
 				lowerestCost = cost;
 				bestAxis = axis;
 				bestSplit = split;
-				bestLeftBin = leftBBox;
-				bestRightBin = rightBBox;
+				bestLeftBin = leftBin;
+				bestRightBin = rightBin;
+				if(print_to_console && lowerestCost!=INFINITY && (leftBin.bin_bbox.surface_area()<= 0 || rightBin.bin_bbox.surface_area() <= 0)){
+					std::cout<<std::endl<<" -- Unexpected split -- : parent size: "<<parentNode.size 
+					<< ", left size: " << leftBin.bin_prims.size() << ", right size: " << rightBin.bin_prims.size() 
+					<< ", max leaf size: "<< max_leaf_size << ", numBinsPerDim: " << numBinsPerDim
+					<<std::endl;
+					if( leftBin.bin_prims.size() > 0){
+						std::cout<<"Left is not empty"<<std::endl;
+						std::cout<<"SplitSpan is: "<<binLength<<" Best split is: "<< bestSplit <<" .Left split is: "<<binSpanMin<<" to "<<binSpanMin + binLength * bestSplit
+						<<std::endl;
+						std::cout<<"Left bin bbox is: "<<leftBin.bin_bbox.min<<", "<<leftBin.bin_bbox.max<<std::endl;
+						for(auto p_index: leftBin.bin_prims){
+							std::cout<<"\tLeft bin primitive "<<p_index<<" bbox at axis is: min: "<<primitives[p_index].bbox().min[bestAxis]<<",max: "<<primitives[p_index].bbox().max[bestAxis]<<std::endl;
+						}
+						for(auto p_index: rightBin.bin_prims){
+							std::cout<<"\tLeft bin primitive "<<p_index<<" center at axis is: "<<primitives[p_index].bbox().center()[bestAxis]<<std::endl;
+						}
+
+					}
+					if(rightBin.bin_prims.size() > 0){
+						std::cout<<"Right is not empty"<<std::endl;
+						std::cout<<"SplitSpan is: "<<binLength<<" Best split is: "<< bestSplit <<" .Right split is: "<<binSpanMin + binLength * bestSplit<<" to "<<binSpanMax
+						<<std::endl;
+						std::cout<<"Right bin bbox is: "<<rightBin.bin_bbox.min<<", "<<rightBin.bin_bbox.max<<std::endl;
+						for(auto p_index: rightBin.bin_prims){
+							std::cout<<"\tRight bin primitive "<<p_index<<" bbox at axis is: min: "<<primitives[p_index].bbox().min[bestAxis]<<",max: "<<primitives[p_index].bbox().max[bestAxis]<<std::endl;
+						}
+						for(auto p_index: rightBin.bin_prims){
+							std::cout<<"\tRight bin primitive "<<p_index<<" center at axis is: "<<primitives[p_index].bbox().center()[bestAxis]<<std::endl;
+						}
+					}
+				}
 			}
 		}
+	}
+
+	if(lowerestCost == INFINITY){
+		std::cout<<"Unexpected lowerestCost == INFINITY"<<std::endl;
+	}
+	if(bestLeftBin.bin_prims.size() <= 0 || bestRightBin.bin_prims.size()<=0){
+		std::cout<<"Unexpected bestLeftBin.bin_prims.size() <= 0 || bestRightBin.bin_prims.size()<=0"<<std::endl;
 	}
 	
 	// partition the primitives into left and right
@@ -158,11 +197,18 @@ void BVH<Primitive>::buildRecursive(size_t parentNodeIndex, uint32_t numBinsPerD
 	};
 	std::partition(primitives.begin() + parentNode.start, 
 					primitives.begin() + parentNode.start + parentNode.size, isPrimLeft);
-	/*
-	1. if left or right has more than max_leaf_size, continue recurse on left / right
-	2. if left or right has less than max_leaf_size, make it a leaf node
-	3. left or right can't be zero, 
-	*/
+	
+	// 1. if left or right has more than max_leaf_size, continue recurse on left / right
+	// 2. if left or right has less than max_leaf_size, make it a leaf node
+	// 3. Left or right is zero
+	//    Fixed on 7/2/2023:
+	// 		Given current implementation, it is very likely that left or right size is zero, as all the primitives are grouped to one side.
+	// 		This can occur when the parent size range from as large as 100 to as small as max_leaf_size+1.
+	// 		Possible fix1: Since l must not be equal to r, when l or r is zero, we have to assign the lower level partition to the other side.
+	// 			For example, if l is zero, we have to split r into two parts, and assign one part to l, basically shrinking the span size but 
+	// 			keeping everything else.	
+	//      Possible fix2: making sure bestsplit will not cause l or r to be zero.	
+	
 
 	Node leftNode;
 	leftNode.bbox = bestLeftBin.bin_bbox;
@@ -210,11 +256,11 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 	//TODO: replace this code with a more efficient traversal:
     Trace curMinTrace;
 	curMinTrace.distance = INFINITY;
+	curMinTrace.hit = false;
     // for(const Primitive& prim : primitives) {
     //     Trace hit = prim.hit(ray);
     //     curMinTrace = Trace::min(curMinTrace, hit);
     // }
-	
 
 	hitRecursive(ray, 0, curMinTrace);
 
@@ -225,6 +271,10 @@ template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
 template<typename Primitive>
 void BVH<Primitive>::hitRecursive(const Ray& ray, size_t nodeIndex, Trace& curMinTrace) const {
 
+	// auto traceDiffers = [&](const Trace& t1, const Trace& t2){
+	// 	return t1.hit != t2.hit || t1.distance != t2.distance || t1.position != t2.position || t1.normal != t2.normal;
+	// };
+
 	Node node = nodes[nodeIndex];
 	// check if hit the node's bbox
 	Vec2 initBounds(0.f, INFINITY);
@@ -234,6 +284,22 @@ void BVH<Primitive>::hitRecursive(const Ray& ray, size_t nodeIndex, Trace& curMi
 		// curMinTrace.hit = false;
 		return;
 	};
+	
+	// comment start
+
+	// if(node.l == node.r){ // if leaf node, test ray against all primitives in the node
+	// 	for(size_t i = node.start; i < node.start + node.size; i++){
+	// 		Trace hit = primitives[i].hit(ray);
+	// 		curMinTrace = Trace::min(curMinTrace, hit);
+	// 	}
+	// 	return;
+	// }else{
+	// 	hitRecursive(ray, node.l, curMinTrace);
+	// 	hitRecursive(ray, node.r, curMinTrace);
+	// }
+
+	// comment end
+
 
 	if(node.l == node.r){ // if leaf node, test ray against all primitives in the node
 		for(size_t i = node.start; i < node.start + node.size; i++){
@@ -242,10 +308,69 @@ void BVH<Primitive>::hitRecursive(const Ray& ray, size_t nodeIndex, Trace& curMi
 		}
 		return;
 	}else{
-		hitRecursive(ray, node.l, curMinTrace);
-		hitRecursive(ray, node.r, curMinTrace);
-	}
+		
+		// hitRecursive(ray, node.l, curMinTrace);
+		// hitRecursive(ray, node.r, curMinTrace);
 
+
+		// hit both left and right child bbox
+		// Trace leftHit, rightHit;
+		Vec2 leftTimeBounds(0.f, INFINITY);
+		Vec2 rightTimeBounds(0.f, INFINITY);
+		// bool leftHit = nodes[node.l].bbox.hit(ray, leftTimeBounds);
+		// bool rightHit = nodes[node.r].bbox.hit(ray, rightTimeBounds);
+		
+		// find the closer one
+		float leftHitMinT = leftTimeBounds[0];
+		float rightHitMinT = rightTimeBounds[0];
+		size_t firstHitNodeIndex = leftHitMinT <= rightHitMinT ? node.l : node.r;
+		size_t secondHitNodeIndex = leftHitMinT <= rightHitMinT ? node.r : node.l;
+		// float firstHitMint = leftHitMinT <= rightHitMinT ? leftHitMinT : rightHitMinT;
+		float secondHitMinT = leftHitMinT <= rightHitMinT ? rightHitMinT : leftHitMinT;
+
+		// bool shouldHitSecond = false;
+		// Trace initMinTrace = curMinTrace;
+		hitRecursive(ray, firstHitNodeIndex, curMinTrace);
+		// Trace afterFirstHitTrace = curMinTrace;
+		// afterFirstHitDistance = afterFirstHitTrace.distance;
+		// float afterFirstHitDistance = curMinTrace.distance;
+		bool firstHit = curMinTrace.hit;
+		bool firstHitStillCheckSecond = firstHit && curMinTrace.distance >= secondHitMinT;
+		if(firstHitStillCheckSecond || !firstHit){ 
+			// shouldHitSecond = true;
+			hitRecursive(ray, secondHitNodeIndex, curMinTrace);
+		}
+		
+		
+		// Trace FinalHitTrace = curMinTrace;
+		// if(traceDiffers(afterFirstHitTrace, FinalHitTrace) && !shouldHitSecond){
+		// 	std::cout << "\n\nError with hit second condition detected" << std::endl;
+			// std::cout << "Ray info: originate from: "<< ray.point << " with direction: " << ray.dir<< " .Ray norm: " << ray.dir.norm()<< std::endl;
+			// std::cout << "Initial trace info: " << initMinTrace.hit 
+			// 		  << " trace distance: " << initMinTrace.distance 
+			// 		  << std::endl;
+			// std::cout << "\tFirst hit node index: " << firstHitNodeIndex 
+			// 		<< " .Bounding box: " << nodes[firstHitNodeIndex].bbox 
+			// 		<< " .Estimated Hit time: " << firstHitMint 
+			// 		<< " .Estimated Hit distance: " << firstHitMint * ray.dir.norm()
+			// 		<< std::endl;
+			// std::cout << "\tSecond hit node index: " << secondHitNodeIndex
+			// 		<< " .Bounding box: " << nodes[secondHitNodeIndex].bbox 
+			// 		<< " .Estimated Hit time: " << secondHitMinT 
+			// 		<< " .Estimated Hit distance: " << secondHitMinT * ray.dir.norm()
+			// 		<< std::endl;
+			// std::cout << "\tAfter first hit trace info: " << afterFirstHitTrace.hit 
+			// 		  << " trace distance: " << afterFirstHitTrace.distance 
+			// 		  << std::endl;
+			// std::cout << "\tFinal trace info: " << FinalHitTrace.hit 
+			// 		  << " trace distance: " << FinalHitTrace.distance 
+			// 		  << std::endl;
+		// }
+
+		// return;
+		
+
+	}
 	
 }
 
