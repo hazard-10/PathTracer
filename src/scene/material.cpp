@@ -10,8 +10,11 @@ Vec3 reflect(Vec3 dir) {
     // Return direction to incoming light that would be
 	// reflected out in direction dir from surface
 	// with normal (0,1,0)
+	Vec3 ret = dir;
+	ret.y = -ret.y;
+	return ret;
 
-    return Vec3{};
+    // return Vec3{};
 }
 
 Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal) {
@@ -100,8 +103,8 @@ Scatter Mirror::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
 	// Similar to albedo, reflectance represents the ratio of incoming light to reflected light
 
     Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
+    ret.direction = reflect(out);
+    ret.attenuation = reflectance.lock()->evaluate(uv);
 	ret.specular = true;
     return ret;
 }
