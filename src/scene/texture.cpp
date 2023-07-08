@@ -70,7 +70,7 @@ Spectrum sample_trilinear(HDR_Image const &base, std::vector< HDR_Image > const 
 	//TODO: implement trilinear sampling strategy on using mip-map 'levels'
 	 
 	std::vector< HDR_Image > all_levels;
-	for (int i = 0; i < levels.size(); i++){
+	for (uint32_t i = 0; i < levels.size(); i++){
 		all_levels.push_back(levels[i].copy());
 	}
 	all_levels.insert(all_levels.begin(), base.copy());

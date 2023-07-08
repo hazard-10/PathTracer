@@ -47,11 +47,16 @@ Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& 
 	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
 	Vec3 out_dir_local = hit.out_dir;
 
-	Vec3 in_dir_local = hit.bsdf.scatter(rng, out_dir_local, hit.uv).direction;
+	Materials::Scatter scatter = hit.bsdf.scatter(rng, out_dir_local, hit.uv);
+	Vec3 in_dir_local = scatter.direction;
 	Vec3 in_dir_world = hit.object_to_world.rotate(in_dir_local);
 
-	Spectrum attenuation = hit.bsdf.evaluate(in_dir_local,out_dir_local, hit.uv);
-
+	Spectrum attenuation;
+	if(!scatter.specular) {	
+		attenuation = hit.bsdf.evaluate(in_dir_local, out_dir_local, hit.uv);
+	}else{
+		attenuation = scatter.attenuation;
+	}
 	//TODO: rotate that direction into world coordinates
 
 	//TODO: construct a ray travelling in that direction
@@ -67,7 +72,7 @@ Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& 
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and add to radiance
 	radiance_new = radiance_new * attenuation ;
-	radiance_new = radiance_new / hit.bsdf.pdf(in_dir_local, out_dir_local);
+	if(!scatter.specular) radiance_new = radiance_new / hit.bsdf.pdf(in_dir_local, out_dir_local);
 	radiance += radiance_new;
 	return radiance;
 }
@@ -91,11 +96,15 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
 	Vec3 out_dir_local = hit.out_dir;
 
-	Vec3 in_dir_local = hit.bsdf.scatter(rng, out_dir_local, hit.uv).direction;
+	Materials::Scatter scatter = hit.bsdf.scatter(rng, out_dir_local, hit.uv);
+	Vec3 in_dir_local = scatter.direction;
 	Vec3 in_dir_world = hit.object_to_world.rotate(in_dir_local);
-
-	Spectrum attenuation = hit.bsdf.evaluate(in_dir_local,out_dir_local, hit.uv);
-
+	Spectrum attenuation;
+	if(!scatter.specular) {	
+		attenuation = hit.bsdf.evaluate(in_dir_local, out_dir_local, hit.uv);
+	}else{
+		attenuation = scatter.attenuation;
+	}
 	//TODO: rotate that direction into world coordinates
 
 	//TODO: construct a ray travelling in that direction
@@ -110,7 +119,7 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and set radiance
 	radiance = radiance * attenuation;
-	radiance = radiance / hit.bsdf.pdf(in_dir_local, out_dir_local);
+	if(!scatter.specular) radiance = radiance / hit.bsdf.pdf(in_dir_local, out_dir_local);
     return radiance;
 }
 

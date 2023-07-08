@@ -11,7 +11,8 @@ Vec3 reflect(Vec3 dir) {
 	// reflected out in direction dir from surface
 	// with normal (0,1,0)
 	Vec3 ret = dir;
-	ret.y = -ret.y;
+	ret.x = -ret.x;
+	ret.z = -ret.z;
 	return ret;
 
     // return Vec3{};
@@ -64,7 +65,7 @@ Scatter Lambertian::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
 	ret.direction = sampler.sample(rng);
 
 	//TODO: compute the attenuation of the light using Lambertian::evaluate():
-	ret.attenuation = evaluate(out, ret.direction, uv);
+	ret.attenuation = Lambertian::evaluate(out, ret.direction, uv);
 
 	//indicate that this is not a specular reflection:
 	ret.specular = false;
