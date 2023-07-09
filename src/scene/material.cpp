@@ -1,6 +1,7 @@
 
 #include "material.h"
 #include "../util/rand.h"
+#include <iostream>
 
 namespace Materials {
 
@@ -27,8 +28,26 @@ Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal) {
 	// and false otherwise.
 
 	// The surface normal is (0,1,0)
+ 
 
-	return Vec3{};
+	float cosAngleOutDir = dot(out_dir, Vec3{0,1,0});
+	bool entering = cosAngleOutDir > 0;
+	float ior_ratio = entering ? 1.0f / index_of_refraction : index_of_refraction; 
+	float sinAngleOutDir = sqrt(1 - cosAngleOutDir * cosAngleOutDir);
+	float sinAngleInDir = sinAngleOutDir * ior_ratio;
+	was_internal = false;
+	if (sinAngleInDir > 1) { // over 90 degrees, total reflection
+		was_internal = true; 
+		return Vec3{};
+	} 
+	float cosAngleInDir = sqrt(1 - sinAngleInDir * sinAngleInDir);
+	if (entering) { 
+		cosAngleInDir = -cosAngleInDir;
+	}
+
+	Vec3 ret = -out_dir;
+	ret.y = cosAngleInDir;
+	return ret;
 }
 
 float schlick(Vec3 in_dir, float index_of_refraction) {
@@ -38,7 +57,12 @@ float schlick(Vec3 in_dir, float index_of_refraction) {
 
 	// The surface normal is (0,1,0)
 
-	return 0.0f;
+	float cosTheta = dot(in_dir, Vec3{0,1,0});
+	float r0 = (1 - index_of_refraction) / (1 + index_of_refraction);
+	r0 = r0 * r0;
+	return r0 + (1.0f - r0) * float(pow(1 - cosTheta, 5));
+
+	// return 0.0f;
 }
 
 Spectrum Lambertian::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
@@ -137,10 +161,25 @@ Scatter Refract::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
     // Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
 	// Don't forget that this is a discrete material!
 	// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
-
+ 
     Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
+	bool was_internal = false; 
+    ret.direction = refract(out, ior, was_internal); 
+	if(was_internal) { 
+		ret.direction = reflect(out);
+		ret.attenuation = transmittance.lock()->evaluate(uv); 
+	}else{
+		float cosAngleOutDir = dot(out, Vec3{0,1,0});
+		bool entering = cosAngleOutDir > 0;
+		float ior_ratio = entering ? 1.0f / ior : ior; 
+		float sqr_ior_ratio = ior_ratio * ior_ratio;
+		Spectrum local_transmittance = transmittance.lock()->evaluate(uv); 
+		ret.attenuation = local_transmittance * sqr_ior_ratio;
+	}
+	
+	// ret.direction = reflect(out);
+	// ret.attenuation = transmittance.lock()->evaluate(uv);
+	ret.specular = true;
     return ret;
 }
 
@@ -188,9 +227,27 @@ Scatter Glass::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
     // When debugging Glass, it may be useful to compare to a pure-refraction BSDF
 	// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
 
-    Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
+	Vec3 reflect_indir = reflect(out);
+	bool was_internal = false;
+	Vec3 refract_indir = refract(out, ior, was_internal);
+	float fresnel = 0.0f;
+	if(was_internal) {
+		fresnel = 1.0f;
+	} else {
+		fresnel = schlick(out, ior);
+	}
+
+	Scatter ret;
+
+	bool reflect = rng.coin_flip(fresnel);
+	if(reflect) {
+		ret.direction = reflect_indir;
+		ret.attenuation = reflectance.lock()->evaluate(uv);
+	} else {
+		ret.direction = refract_indir;
+		ret.attenuation = transmittance.lock()->evaluate(uv);
+	}
+	ret.specular = true;
     return ret;
 }
 
