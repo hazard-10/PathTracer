@@ -2,7 +2,7 @@
 
 This is a functional global illumination renderer that supports lambertian, mirror, refraction, and glass materials for photo-realistic rendering. I also used bounding volume hierarchy (BVH) to accelerate ray-object collision detection.
 
-    ![path tracing demo](../../renders/output_refraction_high_res_crop.png)
+    ![path tracing demo](../../renders/output_cow_material_high_res.png)
 
 ### Features
 
